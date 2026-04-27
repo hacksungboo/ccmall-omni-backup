@@ -1,19 +1,20 @@
 # 📦 CCmall: Omni-Backup by team Cloud_crew☁️
 
-본 프로젝트는 물류 기반 이커머스 서비스 'CCmall'의 비즈니스 연속성 보장(BCP)을 위해, 
-IaC 기반의 인프라 구축과 데이터 자동 백업/복구 체계를 실무 수준으로 구현한 프로젝트입니다.
+## 프로젝트 소개
+- 서비스명: CCmall (물류 기반 이커머스 서비스)
+- 프로젝트 목표: 장애 상황에서도 서비스가 유지될 수 있는 자동 백업/복구 체계 구축
+- 핵심 기술: AWS, VMware, Terraform, Ansible, FastAPI, PostgreSQL, Docker, Prometheus, Grafana, GitHub Actions
 
 ---
 
 ## 🛠 1. Tech Stack & Infrastructure
-- Language: Python 3.11.7
-- Backend: FastAPI 0.109.0
-- Database: PostgreSQL 15 (Containerized)
-- Infrastructure as Code: Terraform 1.5.7
-- Configuration Management: Ansible 2.15.0
-- Cloud/Virtualization: AWS / VMware Hybrid Cloud
-- Observability: Prometheus, Grafana, Alertmanager (Slack Integration)
-- CI/CD: GitHub Actions (Automated Docker Build & Deployment)
+- **Language**: Python 3.11.7
+- **Backend**: FastAPI 0.109.0
+- **Database**: PostgreSQL 15 (Docker)
+- **IaC & Automation**: Terraform 1.5.7 / Ansible 2.15.0
+- **Cloud / Virtual**: AWS / VMware (Hybrid Environment)
+- **Observability**: Prometheus / Grafana / Slack Alert 연동
+- **CI/CD**: GitHub Actions (Docker Build & Push)
 
 ---
 ```
@@ -40,7 +41,8 @@ project/
 └── requirements.txt            # 파이썬 의존성 패키지 명세
 ```
 
-## 📅 3. Operational Process (SOP)
+- ## 📅3. 프로젝트 진행 방식 (Operational Process)
+우리 팀은 효율적인 개발과 완벽한 결과물 도출을 위해 아래와 같은 프로세스를 준수합니다.
 
 ### 3.1 Agile Development Workflow
 - Sprint Planning: 주차별 마일스톤 수립 및 기술 스택 확정
