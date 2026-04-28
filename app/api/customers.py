@@ -50,7 +50,7 @@ def get_customer_list(db: Session = Depends(get_db)):
 
 
 
-@app.get("/api/customers/{member_id}")
+@app.get("/api/customers/{member_id}") ### 컬럼별 검색기능 추가예정
 def get_member_detail(member_id: str, db: Session = Depends(get_db)):
     customer = db.query(Customer).filter(Customer.ID == member_id).first()
     if not customer:
