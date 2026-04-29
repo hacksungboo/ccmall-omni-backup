@@ -19,7 +19,7 @@ jobs:
           port: 22
           script: |
             # 1. 프로젝트 경로로 이동
-            cd ~/ccmall-omni-backup
+            cd ~/ccmall-omni-backup/cicd_test
 
             # 2. git 이 설치되어 있고 최초한번 clone 되어 있다는 가정하에서 pull 하기
             git pull origin feature/ci_cd
