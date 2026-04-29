@@ -29,10 +29,12 @@ project/
 │   ├── tasks/                  # 백업 스케줄러 (APScheduler)
 │   └── main.py                 # 애플리케이션 엔트리포인트
 ├── infra/                      # 인프라 및 운영 레이어
-│   ├── terraform/              # IaC 기반 AWS 리소스 관리
-│   ├── ansible/                # OS 설정 및 패키지 배포 자동화
+│   ├── backup/                 # DB 백업 자동화
+│   ├── deployment/             # 인프라 구축 자동화
 │   ├── monitoring/             # Prometheus, Grafana 관찰 체계
-│   └── automation/             # 장애 대응(Failover) 및 복구 스크립트
+│   ├── recovery/               # 복구 시스템
+│   └── network/                # 기타 네트워크 설정
+│
 ├── cicd/                       # GitHub Actions 파이프라인 설정
 ├── docker/                     # 컨테이너 빌드 및 오케스트레이션 설정
 ├── docs/                       # 기술 설계서 및 아키텍처 다이어그램
