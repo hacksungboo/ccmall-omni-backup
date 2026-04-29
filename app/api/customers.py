@@ -1,3 +1,4 @@
+
 import os
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy import create_engine, Column, String, Date
@@ -47,6 +48,7 @@ def get_db():
 @app.get("/api/customers", response_model=List[dict])
 def get_customer_list(db: Session = Depends(get_db)):
     return db.query(Customer).all()
+
 
 
 

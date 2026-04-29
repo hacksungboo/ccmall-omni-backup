@@ -1,1 +1,70 @@
-﻿
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>CCMall Admin - Login</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(70, 130, 180, 0.15); text-align: center; width: 350px; border: 2px solid #b0e0e6; }
+        
+        /* [요청] 최대한 귀엽게 수정한 로고 스타일 */
+        .cute-cloud-container { position: relative; display: inline-block; width: 120px; height: 100px; margin-bottom: 20px; animation: float 3s infinite ease-in-out; }
+        
+        /* 로고 둥둥 뜨는 애니메이션 */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* 동글동글한 구름 몸통 (CSS로 그리기) */
+        .cloud-body { position: absolute; bottom: 0; left: 10px; width: 100px; height: 40px; background: #fff; border-radius: 50px; border: 4px solid #87ceeb; }
+        .cloud-body::after, .cloud-body::before { content: ''; position: absolute; background: #fff; border-radius: 50%; border: 4px solid #87ceeb; }
+        .cloud-body::after { width: 50px; height: 50px; top: -30px; left: 15px; border-bottom: none; }
+        .cloud-body::before { width: 40px; height: 40px; top: -20px; right: 15px; border-bottom: none; }
+
+        /* 뽀짝한 눈코입 (구름 몸통 안에 배치) */
+        .cute-face { position: absolute; top: 10px; left: 25px; display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 10; }
+        .cute-eyes { display: flex; gap: 15px; font-size: 16px; font-weight: bold; color: #4682b4; } /* 동그란 눈 */
+        .cute-mouth { font-size: 12px; color: #ff69b4; } /* 작고 귀여운 입 */
+
+        input { display: block; width: 100%; padding: 12px; margin: 10px 0; border: 2px solid #b0e0e6; border-radius: 10px; box-sizing: border-box; }
+        input:focus { border-color: #87ceeb; outline: none; }
+        .btn { width: 100%; padding: 12px; background: #87ceeb; color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 10px; transition: background 0.2s; }
+        .btn:hover { background: #4682b4; }
+
+        .menu-grid { display: grid; gap: 15px; margin-top: 20px; }
+        .menu-btn { padding: 20px; background: white; color: #4682b4; border: 3px solid #87ceeb; border-radius: 15px; font-size: 18px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        .menu-btn:hover { background: #e0ffff; transform: scale(1.05); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div id="login-box" class="card">
+        <div class="cute-cloud-container">
+            <div class="cloud-body">
+                <div class="cute-face">
+                    <div class="cute-eyes">● &nbsp; ●</div> <div class="cute-mouth">v</div> </div>
+            </div>
+        </div>
+        <h2 style="color: #4682b4; margin-top: 0;">CCMall Admin</h2>
+        <input type="text" id="id" placeholder="아이디(입력필드)">
+        <input type="password" id="pw" placeholder="비밀번호(입력필드)">
+        <button class="btn" onclick="login()">Login</button>
+    </div>
+
+    <div id="menu-box" class="card hidden">
+        <h2 style="color: #4682b4; margin-top: 0;">관리 메인</h2>
+        <div class="menu-grid">
+            <button class="menu-btn" onclick="location.href='customers.html'">고객관리 (버튼)</button>
+            <button class="menu-btn" onclick="location.href='orders.html'">주문관리 (버튼)</button>
+            <button onclick="location.href='/inventorys/'">재고관리</button>
+        </div>
+        <p style="margin-top: 30px; color: #888;">CCMall System</p>
+    </div>
+
+    <script>
+        function login() {
+            // 시뮬레이션: 로그인 성공 시 메인 메뉴 표시
+            document.getElementById('login-box').classList.add('hidden');
+            document.getElementById('menu-box').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

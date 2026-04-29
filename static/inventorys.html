@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>재고 관리 - CCMall</title>
+    <style>
+        body { font-family: sans-serif; padding: 30px; background: #f4f7f6; display: flex; gap: 20px; }
+        .container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .list-part { flex: 2; }
+        .detail-part { flex: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #666; color: white; padding: 10px; }
+        td { border: 1px solid #eee; padding: 10px; text-align: center; cursor: pointer; }
+        tr:hover { background: #f0f4ff; }
+        .btn-back { margin-bottom: 20px; padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container list-part">
+        <button class="btn-back" onclick="location.href='index.html'">← 메인으로</button>
+        <h2>재고 테이블</h2>
+        <table id="inventory-table">
+            <thead>
+                <tr><th>재고키값</th><th>재고명</th><th>수량</th></tr>
+            </thead>
+            <tbody id="inventory-body"></tbody>
+        </table>
+    </div>
+
+    <div class="container detail-part">
+        <h2>재고 상세내용</h2>
+        <div id="detail-view">항목을 선택하세요.</div>
+    </div>
+
+    <script>
+        // 페이지 열리자마자 DB에서 데이터 가져오기
+        fetch('/inventorys/')
+            .then(res => res.json())
+            .then(data => {
+                const body = document.getElementById('inventory-body');
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${item.item_id}</td><td>${item.item_name}</td><td>${item.quantity}</td>`;
+                    tr.onclick = () => {
+                        document.getElementById('detail-view').innerHTML = `
+                            <p><b>재고키값:</b> ${item.item_id}</p>
+                            <p><b>재고명:</b> ${item.item_name}</p>
+                            <p><b>현재수량:</b> ${item.quantity}개</p>
+                            <hr><p>상세보기는 로컬 DB 전용입니다.</p>`;
+                    };
+                    body.appendChild(tr);
+                });
+            });
+    </script>
+</body>
+</html>
