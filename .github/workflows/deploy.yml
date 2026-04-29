@@ -25,6 +25,7 @@ jobs:
             git pull origin feature/ci_cd
 
             # 3. python 가상환경 활성화 및 의존성 업데이트
+            python -m venv venv
             source venv/bin/activate
             pip install --upgrade pip
             pip install -r requirements.txt
