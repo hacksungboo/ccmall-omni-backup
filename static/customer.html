@@ -2,75 +2,79 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>고객 관리 시스템 - 테스트용</title>
+    <title>CCMall Admin - 고객 관리</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
-        .test-badge { background-color: #ff4d4d; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #333; color: white; }
-        tr:hover { background-color: #f5f5f5; cursor: pointer; }
-        .container { max-width: 900px; margin: auto; }
-        .detail-box { margin-top: 20px; padding: 15px; border: 2px dashed #ff4d4d; display: none; }
+        /* 메인 페이지 스타일 상속 */
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(70, 130, 180, 0.15); width: 90%; max-width: 1000px; border: 2px solid #b0e0e6; }
+        
+        /* 상단 헤더 영역 */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h2 { color: #4682b4; margin: 0; }
+
+        /* 와이어프레임: 검색 영역 */
+        .search-area { display: flex; gap: 10px; margin-bottom: 20px; background: #e0ffff; padding: 15px; border-radius: 15px; }
+        select, input { padding: 10px; border: 2px solid #b0e0e6; border-radius: 10px; outline: none; }
+        .btn-search { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 0 20px; cursor: pointer; font-weight: bold; }
+        .btn-search:hover { background: #4682b4; }
+
+        /* 고객 테이블 스타일 */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #87ceeb; color: white; padding: 12px; border-radius: 5px 5px 0 0; }
+        td { padding: 15px; border-bottom: 1px solid #f0f8ff; text-align: center; color: #555; }
+        tr:hover { background: #f9ffff; }
+
+        /* 상세보기 버튼 */
+        .btn-detail { background: white; color: #4682b4; border: 2px solid #87ceeb; border-radius: 8px; padding: 5px 15px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .btn-detail:hover { background: #87ceeb; color: white; }
+
+        /* 뒤로가기 버튼 */
+        .btn-back { margin-top: 20px; background: none; border: none; color: #888; text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>고객 관리 시스템 <span class="test-badge">테스트용</span></h1>
-        <p>※ 이 페이지는 API 연동 및 데이터 확인을 위한 <strong>테스트용</strong> 화면입니다.</p>
-        
-        <button onclick="loadCustomers()" style="padding: 10px 20px;">데이터 불러오기</button>
+
+    <div class="card">
+        <div class="header">
+            <h2>☁️ 고객 관리 리스트</h2>
+            <button class="btn-detail" onclick="location.href='/'">메인으로</button>
+        </div>
+
+        <div class="search-area">
+            <select id="search-type">
+                <option value="id">아이디</option>
+                <option value="name">이름</option>
+                <option value="addr">주소</option>
+            </select>
+            <input type="text" id="search-input" placeholder="검색어를 입력하세요..." style="flex-grow: 1;">
+            <button class="btn-search">검색</button>
+        </div>
 
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
+                    <th>아이디</th>
                     <th>이름</th>
-                    <th>이메일</th>
-                    <th>전화번호</th>
+                    <th>주소</th>
+                    <th>액션</th>
                 </tr>
             </thead>
-            <tbody id="listContents"></tbody>
+            <tbody>
+                {% for customer in customers %}
+                <tr>
+                    <td><strong>{{ customer.id }}</strong></td>
+                    <td>{{ customer.name }}</td>
+                    <td>{{ customer.addr }}</td>
+                    <td>
+                        <button class="btn-detail" onclick="location.href='/customers/{{ customer.id }}'">상세보기</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
-
-        <div id="detailView" class="detail-box">
-            <h3>상세 정보 (테스트 데이터)</h3>
-            <div id="detailData"></div>
-        </div>
     </div>
 
-    <script>
-        const SERVER_URL = "http://127.0.0.1:8000";
+    <button class="btn-back" onclick="history.back()">이전 페이지로</button>
 
-        async function loadCustomers() {
-            try {
-                const res = await fetch(`${SERVER_URL}/api/customers`);
-                const items = await res.json();
-                const tbody = document.getElementById('listContents');
-                tbody.innerHTML = '';
-
-                items.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.onclick = () => showDetail(item.ID);
-                    row.innerHTML = `<td>${item.ID}</td><td>${item.NAME}</td><td>${item.EMAIL}</td><td>${item.PHONE}</td>`;
-                    tbody.appendChild(row);
-                });
-            } catch (e) { alert("서버 연결 확인 필요"); }
-        }
-
-        async function showDetail(id) {
-            try {
-                const res = await fetch(`${SERVER_URL}/api/customers/${id}`);
-                const data = await res.json();
-                const box = document.getElementById('detailView');
-                box.style.display = 'block';
-                document.getElementById('detailData').innerHTML = `
-                    <p><b>주소:</b> ${data.ADDR}</p>
-                    <p><b>생일:</b> ${data.BIRTH}</p>
-                    <p><b>비고:</b> 테스트 통신 성공</p>
-                `;
-            } catch (e) { alert("상세 정보 호출 실패"); }
-        }
-    </script>
 </body>
 </html>
