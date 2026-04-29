@@ -1,4 +1,37 @@
 # .github/workflows/deploy.yml
 
-# 참고 예시는 testvm1에 있습니다
-# /root/fastapi/app01/.github/workflows/deploy.yml 참고할 것.
+name: fastapi 를  aws linux 에 배포하기
+
+on:
+  push:
+    branches: ["feature/ci_cd"] # master 브렌치에 push 될때 아래의 job 을 실행해라 라는 의미
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ssh 원격 명령
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          port: 22
+          script: |
+            # 1. 프로젝트 경로로 이동
+            cd ~/
+
+            # 2. git 이 설치되어 있고 최초한번 clone 되어 있다는 가정하에서 pull 하기
+            git pull origin feature/ci_cd
+
+            # 3. python 가상환경 활성화 및 의존성 업데이트
+            source venv/bin/activate
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # 4. 실행중인 프로세스가 있으면 종료
+            fuser -k 8000/tcp || true
+
+            # 5. 백그라운드로 실행하기
+            # nohup 으로 실행하고 로그는 app.log 에 남기기
+            nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8000 > app.log 2>&1 &

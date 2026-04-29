@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>templates/post/new-form.html</title>
+</head>
+
+<body>
+    <div class="container">
+        <h3>새글 작성 폼</h3>
+        <form action="/post/new" method="post">
+            <label for="writer">작성자</label>
+            <input type="text" name="writer" id="writer">
+            <br>
+            <label for="title">제목</label>
+            <input type="text" name="title" id="title">
+            <br>
+            <label for="content">내용</label>
+            <br>
+            <textarea name="content" id="content" rows="10"></textarea>
+            <br>
+            <button type="submit">저장</button>
+        </form>
+    </div>
+
+
+</body>
+
+</html>
