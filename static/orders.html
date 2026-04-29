@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>CCMall Admin - 주문 관리</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(70, 130, 180, 0.15); width: 90%; max-width: 900px; border: 2px solid #b0e0e6; }
+        h2 { color: #4682b4; border-bottom: 2px solid #e0ffff; padding-bottom: 10px; margin-top: 0; }
+        .search-area { display: flex; gap: 10px; margin-bottom: 20px; background: #e0ffff; padding: 15px; border-radius: 15px; }
+        select, input { padding: 10px; border: 2px solid #b0e0e6; border-radius: 10px; outline: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #87ceeb; color: white; padding: 12px; }
+        td { padding: 15px; border-bottom: 1px solid #f0f8ff; text-align: center; }
+        .btn { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 10px 20px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; }
+        .btn-outline { background: white; color: #4682b4; border: 2px solid #87ceeb; border-radius: 10px; padding: 10px 20px; cursor: pointer; font-weight: bold; text-decoration: none; display: inline-block; }
+        .info-group { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; text-align: left; }
+        .info-box { padding: 20px; border-radius: 15px; border: 1px solid #b0e0e6; line-height: 1.8; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        {% if mode == "list" %}
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">📜 주문 관리 리스트</h2>
+                <a href="/" class="btn-outline">메인으로</a>
+            </div>
+
+            <form action="/orders/" method="get" class="search-area">
+                <select name="search_type">
+                    <option value="customer_id" {% if request.query_params.get('search_type') == 'customer_id' %}selected{% endif %}>주문자 ID</option>
+                    <option value="item_name" {% if request.query_params.get('search_type') == 'item_name' %}selected{% endif %}>제품명</option>
+                </select>
+                <input type="text" name="search_input" placeholder="검색어 입력..." value="{{ request.query_params.get('search_input', '') }}" style="flex-grow: 1;">
+                <button type="submit" class="btn">검색</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>주문번호</th>
+                        <th>주문자 ID</th>
+                        <th>제품명</th>
+                        <th>주문시간</th>
+                        <th>액션</th>
+                    </tr>
+                </thead>
+            <tbody>
+    {% for order, item in orders_with_items %}
+    <tr>
+        <td>{{ order.order_id }}</td>
+        <td><strong>{{ order.customer_id }}</strong></td>
+        <td>{{ item.item_name }}</td> 
+        <td>{{ order.order_time.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td><a href="?order_id={{ order.order_id }}" class="btn">상세보기</a></td>
+    </tr>
+    {% endfor %}
+</tbody>
+            </table>
+
+        {% else %}
+            <h2>📦 주문 상세 정보 (No. {{ order.order_id }})</h2>
+            <div class="info-group">
+                <div class="info-box" style="background: #f9ffff;">
+                    <h3 style="color: #4682b4; margin-top: 0;">👤 주문자 정보</h3>
+                    <p><strong>아이디:</strong> {{ customer.id }}</p>
+                    <p><strong>이름:</strong> {{ customer.name }}</p>
+                    <p><strong>연락처:</strong> {{ customer.phone_number }}</p>
+                    <p><strong>주소:</strong> {{ customer.address }}</p>
+                </div>
+                <div class="info-box" style="background: #fffafa;">
+                    <h3 style="color: #db7093; margin-top: 0;">🛍️ 상품 정보</h3>
+                    <p><strong>상품명:</strong> {{ item.item_name }}</p>
+                    <p><strong>상품 ID:</strong> {{ item.item_id }}</p>
+                    <p><strong>수량:</strong> {{ order.order_quantity }} 개</p>
+                    <p><strong>일시:</strong> {{ order.order_time.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <a href="/orders/" class="btn-outline" style="flex: 1; text-align: center;">목록으로</a>
+                <form action="/orders/delete/{{ order.order_id }}" method="post" style="flex: 1;">
+                    <button type="submit" class="btn" style="width: 100%; background: #ff6b6b;" onclick="return confirm('주문을 취소하고 재고를 복구할까요?')">주문 취소</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+</body>
+</html>

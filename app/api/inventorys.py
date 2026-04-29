@@ -22,11 +22,11 @@ async def read_inventorys_page(
     search_input: str = None, 
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.inventorys)
+    query = db.query(models.Inventory)
     
     # 검색어가 있을 경우 상품명(item_name) 필터링
     if search_input:
-        query = query.filter(models.inventorys.item_name.contains(search_input))
+        query = query.filter(models.Inventory.item_name.contains(search_input))
     
     items = query.all()
     return templates.TemplateResponse("inventorys.html", {"request": request, "items": items})
@@ -34,7 +34,7 @@ async def read_inventorys_page(
 # 상세 페이지 라우터
 @router.get("/{item_id}", response_class=HTMLResponse)
 async def read_inventory_detail_page(request: Request, item_id: int, db: Session = Depends(get_db)):
-    db_item = db.query(models.inventorys).filter(models.inventorys.item_id == item_id).first()
+    db_item = db.query(models.Inventory).filter(models.Inventory.item_id == item_id).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="상품 정보를 찾을 수 없습니다.")
     
