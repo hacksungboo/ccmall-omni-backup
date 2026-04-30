@@ -1,56 +1,98 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
+    <div class="header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
+    <img src="/static/images/cloud_character.png" width="60" style="cursor: pointer;" onclick="location.href='/'">
+    <h2 style="color: #4682b4; margin: 0; cursor: pointer;" onclick="location.href='/'">재고 관리 시스템</h2>
+</div>
     <meta charset="UTF-8">
     <title>CCMall Admin - 재고 관리</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(70, 130, 180, 0.15); width: 90%; max-width: 1000px; border: 2px solid #b0e0e6; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h2 { color: #4682b4; margin: 0; }
+        body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 95%; max-width: 1000px; }
         
-        /* 와이어프레임 검색 영역 */
-        .search-area { display: flex; gap: 10px; margin-bottom: 20px; background: #e0ffff; padding: 15px; border-radius: 15px; }
-        input { padding: 10px; border: 2px solid #b0e0e6; border-radius: 10px; outline: none; flex-grow: 1; }
-        .btn-search { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 0 25px; cursor: pointer; font-weight: bold; }
-
-        table { width: 100%; border-collapse: collapse; }
+        /* 테이블 스타일 */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { background: #87ceeb; color: white; padding: 12px; }
-        td { padding: 15px; border-bottom: 1px solid #f0f8ff; text-align: center; }
-        .btn-detail { background: white; color: #4682b4; border: 2px solid #87ceeb; border-radius: 8px; padding: 5px 15px; cursor: pointer; font-weight: bold; }
-        .btn-detail:hover { background: #87ceeb; color: white; }
+        td { padding: 15px; border-bottom: 1px solid #eee; text-align: center; }
+
+        /* 편집용 입력창 (편집 모드일 때만 보임) */
+        .edit-input { padding: 5px; border: 2px solid #87ceeb; border-radius: 5px; width: 80%; }
+
+        /* 버튼 스타일 */
+        .btn { padding: 6px 12px; border-radius: 8px; cursor: pointer; border: none; font-weight: bold; text-decoration: none; display: inline-block; }
+        .btn-edit { background: #f0f8ff; color: #4682b4; border: 1px solid #87ceeb; }
+        .btn-save { background: #4682b4; color: white; }
+        .btn-cancel { background: #ccc; color: white; }
+        .btn-add-main { background: #4682b4; color: white; padding: 10px 20px; margin-bottom: 15px; }
+
+        /* JS 없는 모달 구현 (CSS :target 활용) */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal:target { display: flex; } /* URL 끝에 #add_modal이 붙으면 보임 */
+        .modal-content { background: white; padding: 30px; border-radius: 20px; width: 400px; position: relative; }
+        .close-modal { position: absolute; top: 10px; right: 15px; text-decoration: none; color: #333; font-size: 20px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <div class="header">
-            <h2>📦 재고 관리 시스템</h2>
-            <button class="btn-detail" onclick="location.href='/'">메인으로</button>
-        </div>
 
-        <form action="/inventorys/" method="get" class="search-area">
-            <input type="text" name="search_input" placeholder="상품명을 입력하세요..." value="{{ request.query_params.get('search_input', '') }}">
-            <button type="submit" class="btn-search">검색</button>
-        </form>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between;">
+            <h2>📦 재고 관리 시스템</h2>
+            <!-- 추가 버튼: 클릭 시 URL 뒤에 #add_modal이 붙으며 창이 뜸 -->
+            <a href="#add_modal" class="btn btn-add-main">+ 신규 재고 추가</a>
+        </div>
 
         <table>
             <thead>
                 <tr>
-                    <th>상품 ID</th>
+                    <th>ID</th>
                     <th>상품명</th>
-                    <th>재고 수량</th>
+                    <th>수량</th>
+                    <th>관리</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items %}
                 <tr>
-                    <td>{{ item.item_id }}</td>
-                    <td><strong>{{ item.item_name }}</strong></td>
-                    <td>{{ item.quantity }} 개</td>
+                    {% if edit_id == item.item_id %}
+                        <!-- [편집 모드] 수정 버튼을 눌렀을 때 나타나는 폼 -->
+                        <form action="/inventorys/update/{{ item.item_id }}" method="post">
+                            <td>{{ item.item_id }}</td>
+                            <td><input type="text" name="item_name" value="{{ item.item_name }}" class="edit-input"></td>
+                            <td><input type="number" name="quantity" value="{{ item.quantity }}" class="edit-input" style="width: 60px;"></td>
+                            <td>
+                                <button type="submit" class="btn btn-save">완료</button>
+                                <a href="/inventorys/" class="btn btn-cancel">취소</a>
+                            </td>
+                        </form>
+                    {% else %}
+                        <!-- [일반 모드] 평소에 글자로 보이는 상태 -->
+                        <td>{{ item.item_id }}</td>
+                        <td><strong>{{ item.item_name }}</strong></td>
+                        <td>{{ item.quantity }} 개</td>
+                        <td>
+                            <!-- 수정 버튼 클릭 시 edit_id 파라미터를 넘겨서 해당 줄을 편집모드로 전환 -->
+                            <a href="/inventorys/?edit_id={{ item.item_id }}" class="btn btn-edit">수정</a>
+                        </td>
+                    {% endif %}
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+
+    <!-- 신규 추가 모달창 (JS 없이 CSS로 제어) -->
+    <div id="add_modal" class="modal">
+        <div class="modal-content">
+            <a href="#" class="close-modal">&times;</a>
+            <h3>✨ 신규 품목 등록</h3>
+            <form action="/inventorys/add" method="post" style="display: flex; flex-direction: column; gap: 15px;">
+                <input type="text" name="item_name" placeholder="상품명" required style="padding: 10px;">
+                <input type="number" name="quantity" placeholder="수량" required style="padding: 10px;">
+                <button type="submit" class="btn btn-save" style="padding: 12px;">DB에 저장</button>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
