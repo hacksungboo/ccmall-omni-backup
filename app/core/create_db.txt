@@ -1,0 +1,36 @@
+-- 1. 사용자 생성 (ccmall_user / user1)
+CREATE USER ccmall_user WITH PASSWORD 'user1';
+
+-- 2. 데이터베이스 생성 (ccmall_db) 및 소유권 부여
+CREATE DATABASE ccmall_db OWNER ccmall_user;
+
+-- 3. 고객 테이블 (customers)
+CREATE TABLE customers (
+    id VARCHAR(20) PRIMARY KEY,        -- 사용자 아이디 (PK)
+    password VARCHAR(255) NOT NULL,    -- 암호화된 비밀번호 저장
+    name VARCHAR(20) NOT NULL,        -- 성함
+    birth_date DATE,                   -- 생년월일
+    address TEXT,                      -- 주소 (HTML의 addr와 매핑)
+    email VARCHAR(30) UNIQUE          -- 이메일
+);
+
+-- 4. 재고 테이블 (inventorys)
+CREATE TABLE inventorys (
+    item_id SERIAL PRIMARY KEY,        -- 상품 번호 (자동 증가)
+    item_name VARCHAR(255) NOT NULL,   -- 상품 이름
+    quantity INTEGER DEFAULT 0         -- 재고 수량
+);
+
+-- 5. 주문 테이블 (orders)
+-- 외래키(FK) 설정을 통해 데이터 무결성을 보장합니다.
+CREATE TABLE orders (
+    order_id SERIAL PRIMARY KEY,       -- 주문 번호 (자동 증가)
+    item_id INTEGER REFERENCES inventorys(item_id), -- 어떤 상품인가? (FK)
+    customer_id VARCHAR(50) REFERENCES customers(id), -- 누가 샀는가? (FK)
+    order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 주문 시간
+    order_quantity INTEGER DEFAULT 1   -- 주문 수량 (아까 추가한 컬럼)
+);
+
+-- 6. 권한 부여 (사용자가 테이블을 다룰 수 있게)
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
