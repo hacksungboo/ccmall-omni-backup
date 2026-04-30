@@ -1,11 +1,5 @@
-﻿# [API] /inventorys
-# Table: inventorys (item_id, item_name, quantity)
-# 기능: 상품 목록 조회 및 재고 상태 관리
-# [API] /inventorys - 상품 재고 조회 전용 엔드포인트
-
-
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse
+﻿from fastapi import APIRouter, Depends, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from ..core.database import get_db
@@ -14,27 +8,41 @@ from ..models import schemas as models
 router = APIRouter()
 templates = Jinja2Templates(directory="static")
 
-# [수정] 페이지 렌더링 및 검색 기능 통합
+
 @router.get("/", response_class=HTMLResponse)
 async def read_inventorys_page(
     request: Request, 
     search_input: str = None, 
+    edit_id: int = None,  # 수정 버튼 누른 행의 ID를 받음
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.Inventory)
+    # [정렬 추가] .order_by(models.Inventory.item_id)로 ID순 정렬
+    query = db.query(models.Inventory).order_by(models.Inventory.item_id)
     
-    # 검색어가 있을 경우 상품명(item_name) 필터링
     if search_input:
         query = query.filter(models.Inventory.item_name.contains(search_input))
     
     items = query.all()
-    return templates.TemplateResponse("inventorys.html", {"request": request, "items": items})
+    # edit_id를 템플릿에 전달해서 어떤 행을 편집창으로 보여줄지 결정
+    return templates.TemplateResponse("inventorys.html", {
+        "request": request, 
+        "items": items, 
+        "edit_id": edit_id
+    })
 
-# 상세 페이지 라우터
-@router.get("/{item_id}", response_class=HTMLResponse)
-async def read_inventory_detail_page(request: Request, item_id: int, db: Session = Depends(get_db)):
-    db_item = db.query(models.Inventory).filter(models.Inventory.item_id == item_id).first()
-    if not db_item:
-        raise HTTPException(status_code=404, detail="상품 정보를 찾을 수 없습니다.")
-    
-    return templates.TemplateResponse("inventorys_detail.html", {"request": request, "item": db_item})
+# 추가(add)와 수정(update) 로직은 그대로 유지 (단, 리다이렉트 경로 확인)
+@router.post("/add")
+async def add_inventory(item_name: str = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
+    new_item = models.Inventory(item_name=item_name, quantity=quantity)
+    db.add(new_item)
+    db.commit()
+    return RedirectResponse(url="/inventorys/", status_code=303)
+
+@router.post("/update/{item_id}")
+async def update_inventory(item_id: int, item_name: str = Form(...), quantity: int = Form(...), db: Session = Depends(get_db)):
+    item = db.query(models.Inventory).filter(models.Inventory.item_id == item_id).first()
+    if item:
+        item.item_name = item_name
+        item.quantity = quantity
+        db.commit()
+    return RedirectResponse(url="/inventorys/", status_code=303)
