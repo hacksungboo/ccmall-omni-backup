@@ -1,0 +1,8 @@
+#deployment/ansible/roles/postgresql/handlers/main.yml
+#notify 발생 후 handler 대기열에 추가 후 설정 변경을 적용하는 코드
+
+---
+- name: restart postgresql
+  service:
+    name: "{{ db_svc }}"
+    state: restarted

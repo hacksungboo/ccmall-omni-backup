@@ -1,0 +1,9 @@
+---
+- name: Test setting role on Rocky VM
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - setting
+    - postgresql

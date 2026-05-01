@@ -1,0 +1,117 @@
+# deployment/ansible/roles/postgresql/tasks/main.yml
+# db 관련 변수는 group_vars/all.yml 참고
+
+---
+- name: 1. 지원되는 OS 계열인지 확인
+  fail:
+    msg: "지원되지 않는 OS입니다. 현재 OS: {{ ansible_distribution }} {{ ansible_distribution_major_version }}"
+  when: ansible_os_family != "RedHat"
+
+- name: 2. 지원되는 아키텍처인지 확인
+  fail:
+    msg: "지원되지 않는 아키텍처입니다. 현재 아키텍처 {{ ansible_architecture }}"
+  when: ansible_architecture not in ['x86_64', 'aarch64', 'arm64']
+
+# Amazon Linux에선 기본 레포에 PostgreSQL15 패키지가 있으나,
+# 안정성을 고려해 Onprem과 같이 repo Url을 연결해 설치하는 것으로 설계함.
+
+- name: 3-1. PGDG 아키텍처 설정
+  set_fact:
+    pgdg_arch: "{{ 'x86_64' if ansible_architecture == 'x86_64' else 'aarch64'}}"
+
+- name: 3-2. PGDG repo URL 설정
+  set_fact:
+    pgdg_repo_url: >-
+      https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-{{
+      pgdg_arch }}/pgdg-redhat-repo-latest.noarch.rpm
+
+- name: 4. PGDG 저장소 설치
+  dnf:
+    name: "{{ pgdg_repo_url }}"
+    state: present
+    disable_gpg_check: true
+
+- name: 5. 기본 PostgreSQL 모듈 비활성화
+  command: dnf -qy module disable postgresql
+  register: disable_module_result
+  changed_when: "'Nothing to do' not in disable_module_result.stdout"
+  failed_when: disable_module_result.rc != 0
+
+- name: 6. PostgreSQL 15 패키지 설치
+  dnf:
+    name:
+      - "{{ db_pkg }}-server"
+      - "{{ db_pkg }}"
+    state: present
+
+- name: 7. PostgreSQL 초기화
+  command: "/usr/pgsql-15/bin/postgresql-15-setup initdb"
+  args:
+    creates: "{{ db_dir }}/PG_VERSION"
+
+- name: 8. PostgreSQL 서비스 시작 및 자동 시작 설정
+  service:
+    name: "{{ db_svc }}"
+    state: started
+    enabled: yes
+
+- name: 9. postgresql.conf 외부 접속 설정
+  lineinfile:
+    path: "{{ db_dir }}/postgresql.conf"
+    regexp: '^#?listen_addresses\s*='
+    line: "listen_addresses = '*'"
+    state: present
+  notify: restart postgresql
+
+- name: 10. pg_hba.conf 접속 허용 설정
+  lineinfile:
+    path: "{{ db_dir }}/pg_hba.conf"
+    regexp: "^host\\s+all\\s+all\\s+{{ client_cidr }}"
+    line: "host   all   all   {{ client_cidr }}   md5"
+    state: present
+  notify: restart postgresql
+
+- name: 11. firewalld 실행 여부 확인
+  command: systemctl is-active firewalld
+  register: firewalld_status
+  changed_when: false
+  failed_when: false
+
+- name: 12. PostgreSQL 포트 방화벽 허용
+  firewalld:
+    port: "{{ db_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: true
+  when: firewalld_status.rc == 0
+
+- name: 13. 설정 변경 적용
+  meta: flush_handlers
+
+- name: 14. DB 사용자 생성
+  become_user: postgres
+  shell: |
+    psql -tc "SELECT 1 FROM pg_roles WHERE rolname='{{ db_user }}'" | grep -q 1 || \
+    psql -c "CREATE USER {{ db_user }} WITH PASSWORD '{{ db_pw }}';"
+  args:
+    executable: /bin/bash
+
+- name: 15. DB 생성
+  become_user: postgres
+  shell: |
+    psql -tc "SELECT 1 FROM pg_database WHERE datname='{{ db_name }}';" | grep -q 1 || \
+    psql -c "CREATE DATABASE {{ db_name }} OWNER {{ db_user }};"
+  args:
+    executable: /bin/bash
+
+- name: 16. DB 권한 부여
+  become_user: postgres
+  command: >
+    psql -c "GRANT ALL PRIVILEGES ON DATABASE {{ db_name }} TO {{ db_user }};"
+
+- name: 17. DB 접속 테스트
+  become_user: postgres
+  command: >
+    psql -d {{ db_name }} -c "SELECT current_database();"
+  changed_when: false
+

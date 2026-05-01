@@ -1,0 +1,13 @@
+#deployment/ansible/playbooks/setup_onprem.yml
+
+---
+- name: Setup Onprem db
+  hosts: onprem_db
+  become: yes
+  vars:
+    db_name: "ccmall_onprem"
+    db_user: "{{ db_user }}"
+    db_pw: "{{ db_pw }}"
+    client_cidr: "0.0.0.0/0"
+  roles:
+    - postgresql

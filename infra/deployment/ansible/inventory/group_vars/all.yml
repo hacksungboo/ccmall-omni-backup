@@ -1,0 +1,15 @@
+# ansible 공통 변수 정의
+timezone: Asia/Seoul
+
+#DB 관련 변수
+# 패키지(pkg), 서비스(svc), 디렉토리 경로(dir), 포트
+db_pkg: "postgresql15"
+db_svc: "postgresql-15"
+db_dir: "/var/lib/pgsql/15/data"
+db_port: "5432"
+
+db_name: "test"
+db_user: "ccmall_user"
+db_pw: "1234"
+
+client_cidr: "0.0.0.0/0"
