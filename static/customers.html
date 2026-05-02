@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>CCMall Admin - 고객 관리</title>
     <style>
-        /* 기본 레이아웃 및 디자인 유지 */
         body { font-family: 'Malgun Gothic', sans-serif; background: #f0f8ff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(70, 130, 180, 0.15); width: 90%; max-width: 1000px; border: 2px solid #b0e0e6; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
@@ -14,6 +13,8 @@
         select, input { padding: 10px; border: 2px solid #b0e0e6; border-radius: 10px; outline: none; }
         .btn-search { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 0 20px; cursor: pointer; font-weight: bold; }
         .btn-search:hover { background: #4682b4; }
+        .btn-danger { background: #ff6b6b; color: white; border: none; border-radius: 10px; padding: 0 20px; cursor: pointer; font-weight: bold; }
+        .btn-danger:hover { background: #fa5252; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #87ceeb; color: white; padding: 12px; border-radius: 5px 5px 0 0; }
@@ -110,21 +111,45 @@
                 <div class="info-row"><div class="info-label">생년월일</div><div class="info-value" id="det-birth"></div></div>
             </div>
             <div class="modal-footer">
-                <button class="btn-search" onclick="closeModal('detailModal')">확인</button>
+                <button class="btn-search" onclick="openEditModal()">수정</button>
+                <button class="btn-danger" onclick="deleteCustomer()">삭제</button>
+                <button class="btn-detail" onclick="closeModal('detailModal')">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <h3 style="color: #4682b4; margin-top: 0;">✏️ 고객 정보 수정</h3>
+            <div class="modal-body">
+                <input type="text" id="edit-id" readonly title="아이디(수정불가)" style="background: #eee; cursor: not-allowed;">
+                <input type="password" id="edit-pw" placeholder="새 비밀번호 (필수)">
+                <input type="text" id="edit-name" placeholder="이름 (필수)">
+                <input type="email" id="edit-email" placeholder="이메일 (필수)">
+                <input type="text" id="edit-addr" placeholder="주소 (필수)">
+                <input type="text" id="edit-phone" placeholder="전화번호 (필수)">
+                <input type="date" id="edit-birth" title="생년월일 (필수)">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-search" onclick="submitEditCustomer()">수정 완료</button>
+                <button class="btn-detail" onclick="closeModal('editModal')" style="border-color: #ccc; color: #888;">취소</button>
             </div>
         </div>
     </div>
 
     <script>
+        let currentCustomerData = null; // 수정 및 삭제를 위해 현재 조회 중인 고객 데이터를 보관
+
         function openModal(id) { document.getElementById(id).style.display = 'block'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        // 상세 정보 가져오기 (JS의 data 객체도 소문자 스키마로 맞춤)
+        // [조회] 고객 상세 정보 가져오기
         async function viewCustomerDetail(memberId) {
             try {
                 const response = await fetch(`/customers/${memberId}`);
                 if (response.ok) {
                     const data = await response.json();
+                    currentCustomerData = data; // 전역 변수에 저장
                     
                     document.getElementById('det-id').innerText = data.id;
                     document.getElementById('det-name').innerText = data.name;
@@ -138,12 +163,81 @@
                     alert("정보를 가져오는데 실패했습니다.");
                 }
             } catch (error) {
-                console.error("Error:", error);
                 alert("서버 통신 오류가 발생했습니다.");
             }
         }
 
-        // 고객 추가 API 전송 (새로운 스키마 키값으로 전송)
+        // [추가] 모달 -> 수정 모달 전환 세팅
+        function openEditModal() {
+            closeModal('detailModal');
+            document.getElementById('edit-id').value = currentCustomerData.id;
+            document.getElementById('edit-name').value = currentCustomerData.name;
+            document.getElementById('edit-email').value = currentCustomerData.email;
+            document.getElementById('edit-addr').value = currentCustomerData.address;
+            document.getElementById('edit-phone').value = currentCustomerData.phone_number;
+            document.getElementById('edit-birth').value = currentCustomerData.birth_date;
+            openModal('editModal');
+        }
+
+        // [추가] DB에 고객 정보 수정(PUT) 요청
+        async function submitEditCustomer() {
+            const customerData = {
+                password: document.getElementById('edit-pw').value,
+                name: document.getElementById('edit-name').value,
+                email: document.getElementById('edit-email').value,
+                address: document.getElementById('edit-addr').value,
+                phone_number: document.getElementById('edit-phone').value,
+                birth_date: document.getElementById('edit-birth').value
+            };
+
+            if (!customerData.password || !customerData.name || !customerData.birth_date) {
+                alert("비밀번호, 이름, 생년월일은 필수입니다.");
+                return;
+            }
+
+            try {
+                const response = await fetch(`/customers/${currentCustomerData.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(customerData)
+                });
+
+                if (response.ok) {
+                    alert("고객 정보가 성공적으로 수정되었습니다.");
+                    location.reload(); 
+                } else {
+                    const errorData = await response.json();
+                    alert("수정 실패: " + (errorData.detail || "오류가 발생했습니다."));
+                }
+            } catch (error) {
+                alert("서버 연결에 실패했습니다.");
+            }
+        }
+
+        // [삭제] DB에 고객 정보 삭제(DELETE) 요청
+        async function deleteCustomer() {
+            if (!confirm(`정말 [${currentCustomerData.name}] 고객의 정보를 삭제하시겠습니까?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/customers/${currentCustomerData.id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    alert("고객 정보가 안전하게 삭제되었습니다.");
+                    location.reload();
+                } else {
+                    const errorData = await response.json();
+                    alert("삭제 실패: " + (errorData.detail || "오류가 발생했습니다."));
+                }
+            } catch (error) {
+                alert("서버 연결에 실패했습니다.");
+            }
+        }
+
+        // 기존 고객 추가 코드
         async function submitCustomer() {
             const customerData = {
                 id: document.getElementById('new-id').value,
@@ -155,7 +249,6 @@
                 birth_date: document.getElementById('new-birth').value
             };
 
-            // 필수값 검증 (pw와 birth도 추가됨)
             if (!customerData.id || !customerData.password || !customerData.name || !customerData.birth_date) {
                 alert("아이디, 비밀번호, 이름, 생년월일은 필수입니다.");
                 return;
@@ -180,7 +273,6 @@
             }
         }
 
-        // 검색 데이터 처리
         function searchData() {
             const type = document.getElementById('search-type').value;
             const value = document.getElementById('search-input').value;
@@ -191,9 +283,8 @@
             if (e.key === 'Enter') { searchData(); }
         });
 
-        // 모달 외곽 클릭 시 닫기
         window.onclick = function(event) {
-            if (event.target.className === 'modal') {
+            if (event.target.classList.contains('modal')) {
                 event.target.style.display = "none";
             }
         }
