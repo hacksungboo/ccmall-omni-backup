@@ -4,13 +4,14 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from datetime import date
+from typing import List
 from ..core.database import get_db 
 from ..models import schemas as models
 
 router = APIRouter()
 templates = Jinja2Templates(directory="static")
 
-# [Pydantic] 새 스키마에 맞춘 소문자 데이터 검증 모델
+### 신규 고객 생성용
 class CustomerCreate(BaseModel):
     id: str
     password: str    
@@ -20,7 +21,16 @@ class CustomerCreate(BaseModel):
     email: str
     phone_number: str
 
-# --- [기능 1] 고객 리스트 조회 및 검색 ---
+###  기존 고객 수정용 
+class CustomerUpdate(BaseModel):
+    password: str    
+    name: str
+    birth_date: date
+    address: str
+    email: str
+    phone_number: str
+
+### 고객 리스트 조회 및 검색
 @router.get("/", response_class=HTMLResponse)
 async def get_customers_list_page(
     request: Request, 
@@ -30,7 +40,6 @@ async def get_customers_list_page(
 ):  
     query = db.query(models.Customer)
 
-    # 검색 필터 적용 (새 컬럼명 매핑)
     if search_type and search_value:
         search_filter = f"%{search_value}%"
         if search_type == "id":
@@ -49,7 +58,7 @@ async def get_customers_list_page(
         "search_value": search_value
     })
 
-# --- [기능 2] 고객 상세 정보 제공 API (JSON 반환) ---
+### 고객 상세 정보 제공 API
 @router.get("/{member_id}")
 async def get_customer_detail_api(
     member_id: str, 
@@ -59,7 +68,6 @@ async def get_customer_detail_api(
     if not customer:
         raise HTTPException(status_code=404, detail="고객을 찾을 수 없습니다.")
     
-    # 프런트엔드 상세 모달로 보낼 때도 DB 컬럼명(소문자) 그대로 전송
     return {
         "id": customer.id,
         "name": customer.name,
@@ -69,16 +77,14 @@ async def get_customer_detail_api(
         "birth_date": str(customer.birth_date)
     }
 
-# --- [기능 3] 신규 고객 추가 API ---
+### 신규 고객 추가 API
 @router.post("/")
 async def create_customer(customer: CustomerCreate, db: Session = Depends(get_db)):
-    # 1. 아이디 중복 체크
     existing_user = db.query(models.Customer).filter(models.Customer.id == customer.id).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="이미 존재하는 아이디입니다.")
 
     try:
-        # 2. 필드명이 완벽히 동일하므로 dict 언패킹으로 한 번에 삽입!
         new_customer = models.Customer(**customer.dict())
         db.add(new_customer)
         db.commit()
@@ -87,3 +93,39 @@ async def create_customer(customer: CustomerCreate, db: Session = Depends(get_db
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"DB 저장 실패: {str(e)}")
+
+### 고객 정보 수정 API
+@router.put("/{member_id}")
+async def update_customer(member_id: str, customer_data: CustomerUpdate, db: Session = Depends(get_db)):
+    customer = db.query(models.Customer).filter(models.Customer.id == member_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="고객을 찾을 수 없습니다.")
+    
+    try:
+        customer.password = customer_data.password
+        customer.name = customer_data.name
+        customer.birth_date = customer_data.birth_date
+        customer.address = customer_data.address
+        customer.email = customer_data.email
+        customer.phone_number = customer_data.phone_number
+        
+        db.commit()
+        return {"message": "고객 정보가 성공적으로 수정되었습니다."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB 수정 실패: {str(e)}")
+
+### 고객 정보 삭제 API
+@router.delete("/{member_id}")
+async def delete_customer(member_id: str, db: Session = Depends(get_db)):
+    customer = db.query(models.Customer).filter(models.Customer.id == member_id).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="고객을 찾을 수 없습니다.")
+    
+    try:
+        db.delete(customer)
+        db.commit()
+        return {"message": "고객 정보가 성공적으로 삭제되었습니다."}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"DB 삭제 실패: {str(e)}")
