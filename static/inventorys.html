@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <div class="header" style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-    <img src="/static/images/cloud_character.png" width="60" style="cursor: pointer;" onclick="location.href='/'">
-    <h2 style="color: #4682b4; margin: 0; cursor: pointer;" onclick="location.href='/'">재고 관리 시스템</h2>
-</div>
     <meta charset="UTF-8">
     <title>CCMall Admin - 재고 관리</title>
     <style>
@@ -36,10 +32,51 @@
 <body>
 
     <div class="card">
-        <div style="display: flex; justify-content: space-between;">
-            <h2>📦 재고 관리 시스템</h2>
-            <!-- 추가 버튼: 클릭 시 URL 뒤에 #add_modal이 붙으며 창이 뜸 -->
-            <a href="#add_modal" class="btn btn-add-main">+ 신규 재고 추가</a>
+        <!-- 상단 헤더: 이미지(image_10f09b.png) 스타일과 동일하게 배치 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e0f2f7; padding-bottom: 15px; margin-bottom: 20px;">
+            
+            <!-- 왼쪽: 구름 아이콘 + 제목 -->
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <!-- 이미지와 같은 보라빛 구름 아이콘 -->
+                <div style="position: relative; width: 32px; height: 20px; background: #e6e6fa; border-radius: 10px;">
+                    <div style="position: absolute; width: 16px; height: 16px; background: #e6e6fa; border-radius: 50%; top: -8px; left: 4px;"></div>
+                    <div style="position: absolute; width: 14px; height: 14px; background: #e6e6fa; border-radius: 50%; top: -5px; right: 4px;"></div>
+                </div>
+                <h2 style="color: #4682b4; margin: 0; font-size: 22px; letter-spacing: -0.5px;">재고 관리 리스트</h2>
+            </div>
+
+            <!-- 오른쪽: 버튼 디자인 및 위치 동일 적용 -->
+            <div style="display: flex; gap: 8px;">
+                <!-- 1. 추가 버튼 (이미지의 '고객 추가'와 동일한 디자인) -->
+                <a href="#add_modal" style="
+                    text-decoration: none; 
+                    color: #4682b4; 
+                    border: 1.5px solid #87ceeb; 
+                    padding: 6px 16px; 
+                    border-radius: 8px; 
+                    font-size: 14px; 
+                    font-weight: bold;
+                    background: white;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'">
+                    상품 추가
+                </a>
+                
+                <!-- 2. 메인으로 버튼 (이미지의 '메인으로'와 동일한 디자인) -->
+                <a href="/" style="
+                    text-decoration: none; 
+                    color: #4682b4; 
+                    border: 1.5px solid #87ceeb; 
+                    padding: 6px 16px; 
+                    border-radius: 8px; 
+                    font-size: 14px; 
+                    font-weight: bold;
+                    background: white;
+                    transition: all 0.2s;
+                " onmouseover="this.style.background='#f0f8ff'" onmouseout="this.style.background='white'">
+                    메인으로
+                </a>
+            </div>
         </div>
 
         <table>
@@ -89,10 +126,10 @@
             <form action="/inventorys/add" method="post" style="display: flex; flex-direction: column; gap: 15px;">
                 <input type="text" name="item_name" placeholder="상품명" required style="padding: 10px;">
                 <input type="number" name="quantity" placeholder="수량" required style="padding: 10px;">
-                <button type="submit" class="btn btn-save" style="padding: 12px;">DB에 저장</button>
+                <button type="submit" class="btn btn-save" style="padding: 12px;">추가하기</button>
             </form>
         </div>
-    </div>
+    </div>_`
 
 </body>
 </html>
