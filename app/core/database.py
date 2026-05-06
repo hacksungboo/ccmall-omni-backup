@@ -3,7 +3,9 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 # 리눅스 DB 주소
-SQLALCHEMY_DATABASE_URL = "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"
+### "DBMS 타입://사용자ID:비밀번호@호스트IP:포트번호/DB이름"
+### "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"    
+SQLALCHEMY_DATABASE_URL = "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"  
 
 # 엔진 생성
 engine = create_engine(SQLALCHEMY_DATABASE_URL)

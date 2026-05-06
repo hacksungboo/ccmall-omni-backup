@@ -1,66 +1,48 @@
--- 1. 사용자 생성 (ccmall_user / user1)
-CREATE USER ccmall_user WITH PASSWORD 'user1';
+### DB에 테이블 생성 SQL문 (참조 무결성 때문에 orders부터 삭제)
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS inventorys CASCADE;
+DROP TABLE IF EXISTS customers CASCADE;
+DROP TABLE IF EXISTS admins CASCADE;
 
--- 2. 데이터베이스 생성 (ccmall_db) 및 소유권 부여
-CREATE DATABASE ccmall_db OWNER ccmall_user;
-
--- 3. 고객 테이블 (customers)
-CREATE TABLE customers (
-    id VARCHAR(20) PRIMARY KEY,        -- 사용자 아이디 (PK)
-    password VARCHAR(255) NOT NULL,    -- 암호화된 비밀번호 저장
-    name VARCHAR(20) NOT NULL,        -- 성함
-    birth_date DATE,                   -- 생년월일
-    address TEXT,                      -- 주소 (HTML의 addr와 매핑)
-    email VARCHAR(30) UNIQUE          -- 이메일
-);
-
--- 4. 재고 테이블 (inventorys)
+### 재고 테이블
 CREATE TABLE inventorys (
-    item_id SERIAL PRIMARY KEY,        -- 상품 번호 (자동 증가)
-    item_name VARCHAR(255) NOT NULL,   -- 상품 이름
-    quantity INTEGER DEFAULT 0         -- 재고 수량
+    item_id SERIAL PRIMARY KEY,
+    item_name VARCHAR(255),
+    quantity INTEGER
 );
 
--- 5. 주문 테이블 (orders)
--- 외래키(FK) 설정을 통해 데이터 무결성을 보장합니다. 반드시 마지막에 추가 해야 합니다.
+### 고객 테이블
+CREATE TABLE customers (
+    id VARCHAR(50) PRIMARY KEY,
+    password VARCHAR(255) NOT NULL,
+    name VARCHAR(50) NOT NULL,
+    birth_date DATE NOT NULL,
+    address VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(20) NOT NULL
+);
+
+
+### 주문 테이블 (참조 무결성 때문에 주문 테이블 가장 마지막에 생성할것)
 CREATE TABLE orders (
-    order_id SERIAL PRIMARY KEY,       -- 주문 번호 (자동 증가)
-    item_id INTEGER REFERENCES inventorys(item_id), -- 어떤 상품인가? (FK)
-    customer_id VARCHAR(50) REFERENCES customers(id), -- 누가 샀는가? (FK)
-    order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- 주문 시간
-    order_quantity INTEGER DEFAULT 1   -- 주문 수량 (아까 추가한 컬럼)
+    order_id SERIAL PRIMARY KEY,
+    item_id INTEGER REFERENCES inventorys(item_id),
+    customer_id VARCHAR(50) REFERENCES customers(id),
+    order_quantity INTEGER NOT NULL DEFAULT 1,
+    order_time TIMESTAMP
 );
 
 
--- 6. 테이블별 인덱스 생성 (생략가능)
--- 인덱스 설정을 통한 빠른 검색가능 
+### INDEX생성
 CREATE INDEX idx_inventorys_item_id ON inventorys(item_id);
 CREATE INDEX idx_customers_id ON customers(id);
 CREATE INDEX idx_admins_id ON admins(id);
 CREATE INDEX idx_orders_order_id ON orders(order_id);
 
--- 7. 권한 부여 (사용자가 테이블을 다룰 수 있게)
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
-
-
-8.관리자 계정db 생성
-CREATE TABLE admins (
-    id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL
-);
-
--- 로그인 테스트를 위한 계정 추가
-
-INSERT INTO admins (username, password) VALUES ('admin', 'password');
-
-
-
 
 
 ######################################################################################################################
-                    테스트용 더미데이터 (참조 무결성 때문에 주문테이블은 마지막에 입력하셔야합니다)
+                                                    테스트용 더미데이터 (참조 무결성 때문에 주문테이블은 마지막에 입력할것)
 ######################################################################################################################
 #### 고객 테이블
 
@@ -175,21 +157,3 @@ INSERT INTO orders (item_id, customer_id, order_quantity, order_time) VALUES
 (15, 'c0028a7b98', 1, '2024-04-28 14:05:00'),
 (7, 'c0029b8c09', 3, '2024-04-29 16:50:20'),
 (10, 'c0030c9d10', 1, '2024-04-30 21:00:00');
-
-
-
-
-
-
-
-
-
-
-
--- 데이터 삭제 후 다시 테스트 할경우
--- DB에 테이블 생성 SQL문 (참조 무결성 때문에 orders부터 삭제)
-DROP TABLE IF EXISTS orders CASCADE;
-DROP TABLE IF EXISTS inventorys CASCADE;
-DROP TABLE IF EXISTS customers CASCADE;
-DROP TABLE IF EXISTS admins CASCADE;
-입력후 테이블만 생성하시면 됩니다.

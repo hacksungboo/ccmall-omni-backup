@@ -2,13 +2,14 @@
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from datetime import datetime
 from ..core.database import get_db
 from ..models import schemas as models
 
 router = APIRouter()
 templates = Jinja2Templates(directory="static")
 
-# [조회 & 검색]
+### 주문 검색 및 조회
 @router.get("/", response_class=HTMLResponse)
 async def read_orders_page(
     request: Request, 
@@ -17,7 +18,6 @@ async def read_orders_page(
     order_id: int = None, 
     db: Session = Depends(get_db)
 ):
-
     if order_id:
         order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
         if not order:
@@ -49,6 +49,40 @@ async def read_orders_page(
         "mode": "list"
     })
 
+### 주문 추가
+@router.post("/create")
+async def create_order(
+    item_id: int = Form(...), 
+    customer_id: str = Form(...), 
+    order_quantity: int = Form(...), 
+    db: Session = Depends(get_db)
+):
+    item = db.query(models.Inventory).filter(models.Inventory.item_id == item_id).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="상품을 찾을 수 없습니다.")
+    
+    if item.quantity < order_quantity:
+        raise HTTPException(status_code=400, detail=f"재고 부족 (현재: {item.quantity}개)")
+
+    try:
+        item.quantity -= order_quantity
+        
+        new_order = models.Order(
+            item_id=item_id,
+            customer_id=customer_id,
+            order_quantity=order_quantity,
+            order_time=datetime.now()
+        )
+        db.add(new_order)
+        
+        db.commit()
+        return RedirectResponse(url="/orders/", status_code=303)
+        
+    except Exception as e:
+        db.rollback() 
+        raise HTTPException(status_code=500, detail=f"DB 처리 오류: {str(e)}")
+
 @router.post("/delete/{order_id}")
 async def cancel_order(order_id: int, db: Session = Depends(get_db)):
     order = db.query(models.Order).filter(models.Order.order_id == order_id).first()
@@ -58,7 +92,8 @@ async def cancel_order(order_id: int, db: Session = Depends(get_db)):
     try:
         item = db.query(models.Inventory).filter(models.Inventory.item_id == order.item_id).first()
         if item:
-            item.quantity += 1
+            item.quantity += order.order_quantity 
+            
         db.delete(order)
         db.commit()
         return RedirectResponse(url="/orders/", status_code=303)

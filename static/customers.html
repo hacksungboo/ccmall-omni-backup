@@ -11,9 +11,9 @@
 
         .search-area { display: flex; gap: 10px; margin-bottom: 20px; background: #e0ffff; padding: 15px; border-radius: 15px; }
         select, input { padding: 10px; border: 2px solid #b0e0e6; border-radius: 10px; outline: none; }
-        .btn-search { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 0 20px; cursor: pointer; font-weight: bold; }
+        .btn-search { background: #87ceeb; color: white; border: none; border-radius: 10px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
         .btn-search:hover { background: #4682b4; }
-        .btn-danger { background: #ff6b6b; color: white; border: none; border-radius: 10px; padding: 0 20px; cursor: pointer; font-weight: bold; }
+        .btn-danger { background: #ff6b6b; color: white; border: none; border-radius: 10px; padding: 10px 20px; cursor: pointer; font-weight: bold; }
         .btn-danger:hover { background: #fa5252; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -21,63 +21,91 @@
         td { padding: 15px; border-bottom: 1px solid #f0f8ff; text-align: center; color: #555; }
         tr:hover { background: #f9ffff; }
 
-        .btn-detail { background: white; color: #4682b4; border: 2px solid #87ceeb; border-radius: 8px; padding: 5px 15px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+        .btn-detail { background: white; color: #4682b4; border: 2px solid #87ceeb; border-radius: 8px; padding: 8px 15px; cursor: pointer; font-weight: bold; transition: all 0.2s; text-decoration: none; display: inline-block; }
         .btn-detail:hover { background: #87ceeb; color: white; }
 
+        .info-group { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; text-align: left; }
+        .info-box { padding: 20px; border-radius: 15px; border: 1px solid #b0e0e6; line-height: 1.8; }
+
+        /* 모달 (고객 추가 및 수정 전용) */
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal-content { background: white; margin: 10% auto; padding: 25px; border-radius: 20px; width: 450px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border: 2px solid #87ceeb; }
         .modal-body { margin-top: 15px; }
-        .modal-body input, .modal-body p { width: 100%; margin-bottom: 12px; box-sizing: border-box; }
+        .modal-body input { width: 100%; margin-bottom: 12px; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; }
         .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
-        
-        .info-row { display: flex; border-bottom: 1px solid #f0f8ff; padding: 8px 0; }
-        .info-label { width: 100px; font-weight: bold; color: #4682b4; }
-        .info-value { flex: 1; color: #333; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <div class="header">
-            <h2>☁️ 고객 관리 리스트</h2>
-            <div>
-                <button class="btn-detail" onclick="openModal('customerModal')">고객 추가</button>
-                <button class="btn-detail" onclick="location.href='/'">메인으로</button>
+        {% if mode == "list" %}
+            <div class="header">
+                <h2>☁️ 고객 관리 리스트</h2>
+                <div>
+                    <button class="btn-detail" onclick="openModal('customerModal')">고객 추가</button>
+                    <button class="btn-detail" onclick="location.href='/'">메인으로</button>
+                </div>
             </div>
-        </div>
 
-        <div class="search-area">
-            <select id="search-type">
-                <option value="id" {% if search_type == 'id' %}selected{% endif %}>아이디</option>
-                <option value="name" {% if search_type == 'name' %}selected{% endif %}>이름</option>
-                <option value="addr" {% if search_type == 'addr' %}selected{% endif %}>주소</option>
-            </select>
-            <input type="text" id="search-input" value="{{ search_value or '' }}" placeholder="검색어를 입력하세요..." style="flex-grow: 1;">
-            <button class="btn-search" onclick="searchData()">검색</button>
-        </div>
+            <div class="search-area">
+                <select id="search-type">
+                    <option value="id" {% if search_type == 'id' %}selected{% endif %}>아이디</option>
+                    <option value="name" {% if search_type == 'name' %}selected{% endif %}>이름</option>
+                    <option value="addr" {% if search_type == 'addr' %}selected{% endif %}>주소</option>
+                </select>
+                <input type="text" id="search-input" value="{{ search_value or '' }}" placeholder="검색어를 입력하세요..." style="flex-grow: 1;">
+                <button class="btn-search" onclick="searchData()">검색</button>
+            </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>아이디</th>
-                    <th>이름</th>
-                    <th>주소</th>
-                    <th>액션</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for customer in customers %}
-                <tr>
-                    <td><strong>{{ customer.id }}</strong></td>
-                    <td>{{ customer.name }}</td>
-                    <td>{{ customer.address }}</td>
-                    <td>
-                        <button class="btn-detail" onclick="viewCustomerDetail('{{ customer.id }}')">상세보기</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            <table>
+                <thead>
+                    <tr>
+                        <th>아이디</th>
+                        <th>이름</th>
+                        <th>주소</th>
+                        <th>액션</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td><strong>{{ customer.id }}</strong></td>
+                        <td>{{ customer.name }}</td>
+                        <td>{{ customer.address }}</td>
+                        <td>
+                            <a href="?customer_id={{ customer.id }}" class="btn-detail">상세보기</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        {% else %}
+            <div class="header" style="border-bottom: 2px solid #e0ffff; padding-bottom: 10px; margin-bottom: 0;">
+                <h2 style="margin: 0;">👤 고객 상세 정보 (ID: {{ customer.id }})</h2>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-box" style="background: #f9ffff;">
+                    <h3 style="color: #4682b4; margin-top: 0;">📋 기본 정보</h3>
+                    <p><strong>아이디:</strong> {{ customer.id }}</p>
+                    <p><strong>이름:</strong> {{ customer.name }}</p>
+                    <p><strong>생년월일:</strong> {{ customer.birth_date }}</p>
+                </div>
+                <div class="info-box" style="background: #fffafa;">
+                    <h3 style="color: #db7093; margin-top: 0;">📞 연락처 정보</h3>
+                    <p><strong>이메일:</strong> {{ customer.email }}</p>
+                    <p><strong>전화번호:</strong> {{ customer.phone_number }}</p>
+                    <p><strong>주소:</strong> {{ customer.address }}</p>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button class="btn-search" style="flex: 1;" onclick="openEditModalFromDetail('{{ customer.id }}', '{{ customer.name }}', '{{ customer.email }}', '{{ customer.address }}', '{{ customer.phone_number }}', '{{ customer.birth_date }}')">수정</button>
+                <button class="btn-danger" style="flex: 1;" onclick="deleteCustomerDetail('{{ customer.id }}', '{{ customer.name }}')">삭제</button>
+                <a href="/customers/" class="btn-detail" style="flex: 1; text-align: center;">목록으로</a>
+            </div>
+        {% endif %}
     </div>
 
     <div id="customerModal" class="modal">
@@ -99,31 +127,11 @@
         </div>
     </div>
 
-    <div id="detailModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: #4682b4; margin-top: 0;">🔍 고객 상세 정보</h3>
-            <div class="modal-body" id="detail-content">
-                <div class="info-row"><div class="info-label">아이디</div><div class="info-value" id="det-id"></div></div>
-                <div class="info-row"><div class="info-label">이름</div><div class="info-value" id="det-name"></div></div>
-                <div class="info-row"><div class="info-label">이메일</div><div class="info-value" id="det-email"></div></div>
-                <div class="info-row"><div class="info-label">주소</div><div class="info-value" id="det-addr"></div></div>
-                <div class="info-row"><div class="info-label">전화번호</div><div class="info-value" id="det-phone"></div></div>
-                <div class="info-row"><div class="info-label">생년월일</div><div class="info-value" id="det-birth"></div></div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-search" onclick="openEditModal()">수정</button>
-                <button class="btn-danger" onclick="deleteCustomer()">삭제</button>
-                <button class="btn-detail" onclick="closeModal('detailModal')">확인</button>
-            </div>
-        </div>
-    </div>
-
     <div id="editModal" class="modal">
         <div class="modal-content">
             <h3 style="color: #4682b4; margin-top: 0;">✏️ 고객 정보 수정</h3>
             <div class="modal-body">
                 <input type="text" id="edit-id" readonly title="아이디(수정불가)" style="background: #eee; cursor: not-allowed;">
-                <input type="password" id="edit-pw" placeholder="새 비밀번호 (필수)">
                 <input type="text" id="edit-name" placeholder="이름 (필수)">
                 <input type="email" id="edit-email" placeholder="이메일 (필수)">
                 <input type="text" id="edit-addr" placeholder="주소 (필수)">
@@ -138,96 +146,17 @@
     </div>
 
     <script>
-        let currentCustomerData = null; // 수정 및 삭제를 위해 현재 조회 중인 고객 데이터를 보관
-
         function openModal(id) { document.getElementById(id).style.display = 'block'; }
         function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-        // [조회] 고객 상세 정보 가져오기
-        async function viewCustomerDetail(memberId) {
+        // [상세 페이지용] 삭제 로직
+        async function deleteCustomerDetail(customerId, customerName) {
+            if (!confirm(`정말 [${customerName}] 고객의 정보를 삭제하시겠습니까?`)) return;
             try {
-                const response = await fetch(`/customers/${memberId}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    currentCustomerData = data; // 전역 변수에 저장
-                    
-                    document.getElementById('det-id').innerText = data.id;
-                    document.getElementById('det-name').innerText = data.name;
-                    document.getElementById('det-email').innerText = data.email;
-                    document.getElementById('det-addr').innerText = data.address;
-                    document.getElementById('det-phone').innerText = data.phone_number;
-                    document.getElementById('det-birth').innerText = data.birth_date;
-
-                    openModal('detailModal');
-                } else {
-                    alert("정보를 가져오는데 실패했습니다.");
-                }
-            } catch (error) {
-                alert("서버 통신 오류가 발생했습니다.");
-            }
-        }
-
-        // [추가] 모달 -> 수정 모달 전환 세팅
-        function openEditModal() {
-            closeModal('detailModal');
-            document.getElementById('edit-id').value = currentCustomerData.id;
-            document.getElementById('edit-name').value = currentCustomerData.name;
-            document.getElementById('edit-email').value = currentCustomerData.email;
-            document.getElementById('edit-addr').value = currentCustomerData.address;
-            document.getElementById('edit-phone').value = currentCustomerData.phone_number;
-            document.getElementById('edit-birth').value = currentCustomerData.birth_date;
-            openModal('editModal');
-        }
-
-        // [추가] DB에 고객 정보 수정(PUT) 요청
-        async function submitEditCustomer() {
-            const customerData = {
-                password: document.getElementById('edit-pw').value,
-                name: document.getElementById('edit-name').value,
-                email: document.getElementById('edit-email').value,
-                address: document.getElementById('edit-addr').value,
-                phone_number: document.getElementById('edit-phone').value,
-                birth_date: document.getElementById('edit-birth').value
-            };
-
-            if (!customerData.password || !customerData.name || !customerData.birth_date) {
-                alert("비밀번호, 이름, 생년월일은 필수입니다.");
-                return;
-            }
-
-            try {
-                const response = await fetch(`/customers/${currentCustomerData.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(customerData)
-                });
-
-                if (response.ok) {
-                    alert("고객 정보가 성공적으로 수정되었습니다.");
-                    location.reload(); 
-                } else {
-                    const errorData = await response.json();
-                    alert("수정 실패: " + (errorData.detail || "오류가 발생했습니다."));
-                }
-            } catch (error) {
-                alert("서버 연결에 실패했습니다.");
-            }
-        }
-
-        // [삭제] DB에 고객 정보 삭제(DELETE) 요청
-        async function deleteCustomer() {
-            if (!confirm(`정말 [${currentCustomerData.name}] 고객의 정보를 삭제하시겠습니까?`)) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`/customers/${currentCustomerData.id}`, {
-                    method: 'DELETE'
-                });
-
+                const response = await fetch(`/customers/${customerId}`, { method: 'DELETE' });
                 if (response.ok) {
                     alert("고객 정보가 안전하게 삭제되었습니다.");
-                    location.reload();
+                    location.href = '/customers/'; 
                 } else {
                     const errorData = await response.json();
                     alert("삭제 실패: " + (errorData.detail || "오류가 발생했습니다."));
@@ -237,7 +166,61 @@
             }
         }
 
-        // 기존 고객 추가 코드
+        // [상세 페이지용] 수정 모달 데이터 세팅 및 열기
+        function openEditModalFromDetail(id, name, email, addr, phone, birth) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-name').value = name;
+            document.getElementById('edit-email').value = email;
+            document.getElementById('edit-addr').value = addr;
+            document.getElementById('edit-phone').value = phone;
+            document.getElementById('edit-birth').value = birth;
+            openModal('editModal');
+        }
+
+        // [추가] 정보 수정 완료 로직 (오류 처리 개선)
+        async function submitEditCustomer() {
+            const customerId = document.getElementById('edit-id').value;
+            const customerData = {
+                name: document.getElementById('edit-name').value,
+                email: document.getElementById('edit-email').value,
+                address: document.getElementById('edit-addr').value,
+                phone_number: document.getElementById('edit-phone').value,
+                birth_date: document.getElementById('edit-birth').value
+            };
+
+            if (!customerData.name || !customerData.birth_date) {
+                alert("이름과 생년월일은 필수입니다."); return;
+            }
+
+            try {
+                const response = await fetch(`/customers/${customerId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(customerData)
+                });
+                
+                if (response.ok) {
+                    alert("고객 정보가 성공적으로 수정되었습니다.");
+                    location.reload(); 
+                } else {
+                    const errorData = await response.json();
+                    let errorMessage = "오류가 발생했습니다.";
+                    
+                    // Pydantic 유효성 검사 에러(배열 형태) 처리 로직 추가
+                    if (errorData.detail && Array.isArray(errorData.detail)) {
+                        errorMessage = errorData.detail[0].msg.replace('Value error, ', '');
+                    } else if (errorData.detail && typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    }
+                    
+                    alert("수정 실패: " + errorMessage);
+                }
+            } catch (error) {
+                alert("서버 연결에 실패했습니다.");
+            }
+        }
+
+        // [추가] 신규 고객 등록 로직 (오류 처리 개선)
         async function submitCustomer() {
             const customerData = {
                 id: document.getElementById('new-id').value,
@@ -250,8 +233,7 @@
             };
 
             if (!customerData.id || !customerData.password || !customerData.name || !customerData.birth_date) {
-                alert("아이디, 비밀번호, 이름, 생년월일은 필수입니다.");
-                return;
+                alert("아이디, 비밀번호, 이름, 생년월일은 필수입니다."); return;
             }
 
             try {
@@ -260,29 +242,43 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(customerData)
                 });
-
+                
                 if (response.ok) {
                     alert("고객 정보가 성공적으로 추가되었습니다.");
                     location.reload(); 
                 } else {
                     const errorData = await response.json();
-                    alert("추가 실패: " + (errorData.detail || "오류가 발생했습니다."));
+                    let errorMessage = "오류가 발생했습니다.";
+                    
+                    // 신규 등록 시에도 유효성 검사 에러가 발생할 수 있으므로 동일하게 처리
+                    if (errorData.detail && Array.isArray(errorData.detail)) {
+                        errorMessage = errorData.detail[0].msg.replace('Value error, ', '');
+                    } else if (errorData.detail && typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    }
+                    
+                    alert("추가 실패: " + errorMessage);
                 }
             } catch (error) {
                 alert("서버 연결에 실패했습니다.");
             }
         }
 
+        // [검색] 
         function searchData() {
             const type = document.getElementById('search-type').value;
             const value = document.getElementById('search-input').value;
             location.href = `/customers/?search_type=${type}&search_value=${value}`;
         }
 
-        document.getElementById('search-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') { searchData(); }
-        });
+        const searchInput = document.getElementById('search-input');
+        if(searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') { searchData(); }
+            });
+        }
 
+        // 모달 외 영역 클릭 시 닫기
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = "none";
