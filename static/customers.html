@@ -156,7 +156,7 @@
                 const response = await fetch(`/customers/${customerId}`, { method: 'DELETE' });
                 if (response.ok) {
                     alert("고객 정보가 안전하게 삭제되었습니다.");
-                    location.href = '/customers/'; // 삭제 성공 시 리스트 화면으로 자동 이동
+                    location.href = '/customers/'; 
                 } else {
                     const errorData = await response.json();
                     alert("삭제 실패: " + (errorData.detail || "오류가 발생했습니다."));
@@ -177,7 +177,7 @@
             openModal('editModal');
         }
 
-        // [추가] 정보 수정 완료 로직
+        // [추가] 정보 수정 완료 로직 (오류 처리 개선)
         async function submitEditCustomer() {
             const customerId = document.getElementById('edit-id').value;
             const customerData = {
@@ -198,19 +198,29 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(customerData)
                 });
+                
                 if (response.ok) {
                     alert("고객 정보가 성공적으로 수정되었습니다.");
-                    location.reload(); // 상세화면 데이터 새로고침
+                    location.reload(); 
                 } else {
                     const errorData = await response.json();
-                    alert("수정 실패: " + (errorData.detail || "오류가 발생했습니다."));
+                    let errorMessage = "오류가 발생했습니다.";
+                    
+                    // Pydantic 유효성 검사 에러(배열 형태) 처리 로직 추가
+                    if (errorData.detail && Array.isArray(errorData.detail)) {
+                        errorMessage = errorData.detail[0].msg.replace('Value error, ', '');
+                    } else if (errorData.detail && typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    }
+                    
+                    alert("수정 실패: " + errorMessage);
                 }
             } catch (error) {
                 alert("서버 연결에 실패했습니다.");
             }
         }
 
-        // [추가] 신규 고객 등록 로직
+        // [추가] 신규 고객 등록 로직 (오류 처리 개선)
         async function submitCustomer() {
             const customerData = {
                 id: document.getElementById('new-id').value,
@@ -232,12 +242,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(customerData)
                 });
+                
                 if (response.ok) {
                     alert("고객 정보가 성공적으로 추가되었습니다.");
                     location.reload(); 
                 } else {
                     const errorData = await response.json();
-                    alert("추가 실패: " + (errorData.detail || "오류가 발생했습니다."));
+                    let errorMessage = "오류가 발생했습니다.";
+                    
+                    // 신규 등록 시에도 유효성 검사 에러가 발생할 수 있으므로 동일하게 처리
+                    if (errorData.detail && Array.isArray(errorData.detail)) {
+                        errorMessage = errorData.detail[0].msg.replace('Value error, ', '');
+                    } else if (errorData.detail && typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    }
+                    
+                    alert("추가 실패: " + errorMessage);
                 }
             } catch (error) {
                 alert("서버 연결에 실패했습니다.");

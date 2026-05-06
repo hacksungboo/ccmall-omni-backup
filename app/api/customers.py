@@ -2,9 +2,12 @@
 from sqlalchemy.orm import Session
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+# field_validator 추가 임포트
+from pydantic import BaseModel, field_validator
 from datetime import date
 from typing import List
+import re # 정규표현식 모듈 임포트
+
 from ..core.database import get_db 
 from ..models import schemas as models
 
@@ -21,13 +24,27 @@ class CustomerCreate(BaseModel):
     email: str
     phone_number: str
 
-###  기존 고객 수정용 
+### 기존 고객 수정용
 class CustomerUpdate(BaseModel):
     name: str
     birth_date: date
     address: str
     email: str
     phone_number: str
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if not re.match(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$", v):
+            raise ValueError("유효한 이메일 형식이 아닙니다.")
+        return v
+
+    @field_validator('phone_number')
+    @classmethod
+    def validate_phone(cls, v):
+        if not re.match(r"^\d{2,3}-\d{3,4}-\d{4}$", v):
+            raise ValueError("전화번호는 xxx-xxxx-xxxx 형식이어야 합니다.")
+        return v
 
 ### 고객 리스트 조회 및 검색
 @router.get("/", response_class=HTMLResponse)
