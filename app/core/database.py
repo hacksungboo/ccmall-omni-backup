@@ -1,26 +1,26 @@
-﻿from sqlalchemy import create_engine 
+﻿import os
+from sqlalchemy import create_engine 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# 리눅스 DB 주소
-### "DBMS 타입://사용자ID:비밀번호@호스트IP:포트번호/DB이름"
-### "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"    
-SQLALCHEMY_DATABASE_URL = "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"  
 
-# 엔진 생성
+
+DB_USER = os.getenv("DB_USER", "ccmall_user")
+### 임시 서버 만들고 db만든후 DB_HOST부분을 동적으로 변경하셔야합니다.
+DB_HOST = os.getenv("DB_HOST", "172.16.8.201")  
+DB_PASS = os.getenv("DB_PASS", "user1")
+DB_NAME = os.getenv("DB_NAME", "ccmall_db")
+DB_PORT = os.getenv("DB_PORT", "5432")
+
+SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
-
-# 세션 생성 도구
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 부모클래스 설정
 Base = declarative_base()
 
-# DB 연결 통로
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-        #test
