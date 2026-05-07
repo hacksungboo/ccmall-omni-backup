@@ -432,55 +432,89 @@ output "s3_bucket_name" {
     description = "생성된 s3 버킷의 이름"
     value       = aws_s3_bucket.my_bucket.id
 }
-
 locals {
+  # 현재 Terraform 코드가 있는 위치
+  # 예: /home/user/project/infra/deployment
   deployment_dir = abspath(path.module)
 
-  ansible_dir    = "${local.deployment_dir}/ansible"
-  inventory_dir  = "${local.ansible_dir}/inventory"
-  inventory_file = "${local.inventory_dir}/inventory.yml"
-  ansible_cfg    = "${local.ansible_dir}/ansible.cfg"
+  # infra 루트 디렉터리
+  # 예: /home/user/project/infra
+  infra_dir = dirname(local.deployment_dir)
 
-  ssh_key_file   = "${local.deployment_dir}/ccmall-key.pem"
+  # 공용 ansible.cfg 위치
+  # 예: /home/user/project/infra/ansible.cfg
+  ansible_cfg = "${local.infra_dir}/ansible.cfg"
+
+  # 공용 inventory.yml 위치
+  # 예: /home/user/project/infra/inventory/inventory.yml
+  inventory_dir  = "${local.infra_dir}/inventory"
+  inventory_file = "${local.inventory_dir}/inventory.yml"
+
+  # 각 기능 영역별 Ansible roles 경로
+  deployment_roles_dir = "${local.deployment_dir}/ansible/roles"
+  monitoring_roles_dir = "${local.infra_dir}/monitoring/ansible/roles"
+  backup_roles_dir     = "${local.infra_dir}/backup/ansible/roles"
+  recovery_roles_dir   = "${local.infra_dir}/recovery/ansible/roles"
+
+  # EC2 접속용 key 위치
+  # 예: /home/user/project/infra/deployment/ccmall-key.pem
+  ssh_key_file = "${local.deployment_dir}/ccmall-key.pem"
+
+  # VPN, 라우팅 설정 이후 rocky01을 inventory에 넣을 때 사용
   # rocky01_key_file = "${local.deployment_dir}/rocky01-key.pem"
 }
 
-# public ip와 private ip를 이용해서 ansible/inventory/inventory.yml 파일 만들기
+# inventory 디렉터리 생성
+# local_file은 부모 디렉터리가 없으면 파일 생성에 실패할 수 있으므로 미리 생성한다.
+resource "terraform_data" "prepare_ansible_dirs" {
+  provisioner "local-exec" {
+    command = "mkdir -p ${local.inventory_dir}"
+  }
+}
+
+# public ip와 private ip를 이용해서 infra/inventory/inventory.yml 파일 만들기
 resource "local_file" "ansible_inventory" {
   filename = local.inventory_file
+
+  depends_on = [
+    terraform_data.prepare_ansible_dirs
+  ]
 
   content = yamlencode({
     all = {
       hosts = {
+        # EC2-Web은 public subnet에 있으므로 public ip로 직접 접속한다.
         "EC2-Web" = {
           ansible_host                 = aws_instance.ec2_web.public_ip
           ansible_user                 = "ec2-user"
           ansible_ssh_private_key_file = local.ssh_key_file
         }
 
+        # EC2-Rec은 private subnet에 있으므로 EC2-Web을 통해 점프 접속한다.
         "EC2-Rec" = {
           ansible_host                 = aws_instance.ec2_rec.private_ip
           ansible_user                 = "ec2-user"
           ansible_ssh_private_key_file = local.ssh_key_file
 
-          # EC2-Rec은 private subnet에 있으므로 EC2-Web을 통해 점프 접속한다.
           ansible_ssh_common_args = "-o ProxyCommand=\"ssh -o StrictHostKeyChecking=no -i ${local.ssh_key_file} -W %h:%p -q ec2-user@${aws_instance.ec2_web.public_ip}\" -o StrictHostKeyChecking=no"
         }
+
         # rocky01은 VMware에 있는 Rocky Linux 기반 On-Prem DB 서버다.
         # VPN, 라우팅 설정이 완료된 이후 mgmt 서버에서 172.16.8.101로 SSH 접속할 수 있어야 한다.
-        # 환경상 지금은 같은 컴퓨터의 vmware에서 돌아가고 있지만 다른 컴퓨터에서 돌아가고 있다고 가정한다.
+        # 환경상 지금은 같은 컴퓨터의 VMware에서 돌아가고 있지만, 다른 컴퓨터에서 돌아가고 있다고 가정한다.
         # rocky01-key.pem 파일은 infra/deployment/rocky01-key.pem 위치에 있다고 가정한다.
+        #
         # "rocky01" = {
-        #  ansible_host                 = "172.16.8.101"
-        #  ansible_user                 = "user1"
-        #  ansible_ssh_private_key_file = local.rocky01_key_file
-        #}
+        #   ansible_host                 = "172.16.8.101"
+        #   ansible_user                 = "user1"
+        #   ansible_ssh_private_key_file = local.rocky01_key_file
+        # }
       }
     }
   })
 }
 
-# ansible/ansible.cfg 파일 생성
+# infra/ansible.cfg 파일 생성
 resource "local_file" "ansible_cfg" {
   filename = local.ansible_cfg
 
@@ -489,6 +523,7 @@ resource "local_file" "ansible_cfg" {
     inventory = ${local.inventory_file}
     host_key_checking = False
     remote_tmp = /var/tmp/.ansible/tmp
-    roles_path = ${local.ansible_dir}/roles
+    roles_path = ${local.deployment_roles_dir}:${local.monitoring_roles_dir}:${local.backup_roles_dir}:${local.recovery_roles_dir}
+    interpreter_python = auto_silent
   EOF
 }
