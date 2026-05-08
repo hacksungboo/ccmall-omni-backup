@@ -157,7 +157,6 @@ resource "aws_key_pair" "kp" {
 }
 
 # 개인 키를 가져오기
-# 개인 키를 가져오기
 # local_file resource를 이용하면 파일을 생성할 수 있다.
 resource "local_file" "ssh_key" {
   # ccmall-key.pem은 main.tf와 같은 infra/deployment/terraform 폴더에 생성한다.
@@ -253,31 +252,34 @@ resource "aws_security_group" "sg_rec" {
     security_groups = [aws_security_group.sg_web.id]
   }
 
-  # EC2-Con에서 DB 점검, 백업, 복구 자동화 작업을 할 때 사용한다.
+  # mgmt에서 DB 점검, 백업, 복구 자동화 작업을 할 때 사용한다.
   # psql, pg_dump, pg_restore, pg_basebackup, SELECT 1 점검 등에 필요하다.
+  # mgmt 서버가 Tailscale IP 172.16.8.200으로 EC2-Rec에 접근한다.
   ingress {
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_web.id]
+    cidr_blocks     = ["172.16.8.0/24"]
   }
 
-  # EC2-Con의 Prometheus가 EC2-Rec의 Node Exporter를 수집할 때 사용한다.
+  # mgmt의 Prometheus가 EC2-Rec의 Node Exporter를 수집할 때 사용한다.
   # Node Exporter 기본 포트는 9100이다.
+  # mgmt 서버가 Tailscale IP 172.16.8.200으로 EC2-Rec에 접근한다.
   ingress {
     from_port       = 9100
     to_port         = 9100
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_web.id]
+    cidr_blocks     = ["172.16.8.0/24"]
   }
 
-  # EC2-Con의 Prometheus가 EC2-Rec의 PostgreSQL Exporter를 수집할 때 사용한다.
+  # mgmt의 Prometheus가 EC2-Rec의 PostgreSQL Exporter를 수집할 때 사용한다.
   # PostgreSQL Exporter 기본 포트는 9187이다.
+  # mgmt 서버가 Tailscale IP 172.16.8.200으로 EC2-Rec에 접근한다.
   ingress {
     from_port       = 9187
     to_port         = 9187
     protocol        = "tcp"
-    security_groups = [aws_security_group.sg_web.id]
+    cidr_blocks     = ["172.16.8.0/24"]
   }
 
   # 패키지 설치, GitHub 접근, S3 업로드, awscli 사용 등에 사용한다.
