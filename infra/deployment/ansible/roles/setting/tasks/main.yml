@@ -1,2 +1,4 @@
 ---
 - import_tasks: server_setup.yml
+- import_tasks: fastapi_setup.yml
+- import_tasks: nginx_setup.yml
