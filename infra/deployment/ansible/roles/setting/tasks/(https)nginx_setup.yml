@@ -1,0 +1,141 @@
+# deployment/ansible/roles/setting/tasks/nginx_setup.yml
+# 도메인 사용하는 HTTPS 포함 셋업 코드
+---
+- name: (ccmall_web) nginx, HTTPS, cloudflared 배포
+  block:
+    - name: (ccmall_web) nginx 설치
+      dnf:
+        name: nginx
+        state: present
+
+    - name: (ccmall_web) nginx 기본 설정 제거
+      file:
+        path: /etc/nginx/conf.d/default.conf
+        state: absent
+
+    - name: (ccmall_web) nginx reverse proxy 설정 배포
+      copy:
+        dest: /etc/nginx/conf.d/ccmall.conf
+        mode: '0644'
+        content: |
+          server {
+              listen 80;
+              server_name {{ ccmall_domain | default('_') }};
+              
+              location / {
+                  proxy_pass http://127.0.0.1:8000;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+
+          # 추후 인증서 발급 후 HTTPS 설정으로 교체 예정
+          #
+          # server {
+          #     listen 80;
+          #     server_name _;
+          #     return 301 https://$host$request_uri;
+          # }
+          #
+          # server {
+          #     listen 443 ssl;
+          #     server_name _;
+          #
+          #     ssl_certificate     /etc/letsencrypt/live/ccmall/fullchain.pem;
+          #     ssl_certificate_key /etc/letsencrypt/live/ccmall/privkey.pem;
+          #
+          #     location / {
+          #         proxy_pass http://127.0.0.1:8000;
+          #         proxy_set_header Host $host;
+          #         proxy_set_header X-Real-IP $remote_addr;
+          #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          #         proxy_set_header X-Forwarded-Proto $scheme;
+          #     }
+          # }
+
+    - name: (ccmall_web) nginx 설정 문법 검사
+      command: nginx -t
+      changed_when: false
+
+    - name: (ccmall_web) nginx 실행 및 자동 시작
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: (ccmall_web) HTTP 80 포트 방화벽 허용
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
+      ignore_errors: yes
+
+    - name: (ccmall_web) HTTPS 443 포트 방화벽 허용
+      firewalld:
+        service: https
+        permanent: true
+        state: enabled
+        immediate: true
+      ignore_errors: yes
+
+    - name: (ccmall_web) certbot 설치
+      dnf:
+        name:
+          - certbot
+          - python3-certbot-nginx
+        state: present
+
+    - name: (ccmall_web) Let's Encrypt 인증서 발급 및 HTTPS 적용
+      command: >
+        certbot --nginx
+        -d {{ ccmall_domain }}
+        --non-interactive
+        --agree-tos
+        -m {{ certbot_email }}
+        --redirect
+      args:
+        creates: "/etc/letsencrypt/live/{{ ccmall_domain }}/fullchain.pem"
+      when:
+        - ccmall_domain is defined
+        - certbot_email is defined
+
+    - name: (ccmall_web) cloudflared rpm 다운로드
+      get_url:
+        url: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-{{ 'amd64' if ansible_architecture == 'x86_64' else 'arm64' }}.rpm"
+        dest: /tmp/cloudflared.rpm
+        mode: '0644'
+
+    - name: (ccmall_web) cloudflared 설치
+      dnf:
+        name: /tmp/cloudflared.rpm
+        state: present
+        disable_gpg_check: true
+    
+    - name: (ccmall_web) cloudflared tunnel 서비스 설치
+      command: "cloudflared service install {{ cloudflared_token }}"
+      args:
+        creates: /etc/systemd/system/cloudflared.service
+      when: cloudflared_token is defined
+
+
+    - name: (ccmall_web) cloudflared 실행 및 자동 시작
+      service:
+        name: cloudflared
+        state: started
+        enabled: yes
+      when: cloudflared_token is defined
+
+    - name: (ccmall_web) FastAPI health check
+      uri:
+        url: http://127.0.0.1:8000
+        status_code: 200
+      register: fastapi_health
+      retries: 5
+      delay: 3
+      until: fastapi_health.status == 200
+  when: "'ccmall_web' in group_names"
+
+

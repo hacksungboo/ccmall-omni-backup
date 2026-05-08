@@ -1,0 +1,36 @@
+#deployment/ansible/roles/setting/tasks/nginx_setup.yml
+#https 도메인 형식이 아닌 템플릿 형태
+
+---
+- name: (ccmall_web) nginx reverse proxy 배포
+  block:
+    - name: (ccmall_web) nginx 설치
+      dnf:
+        name: nginx
+        state: present
+
+    - name: (ccmall_web) nginx reverse proxy 설정 배포
+      template:
+        src: ccmall.conf.j2
+        dest: /etc/nginx/conf.d/ccmall.conf
+        mode: "0644"
+
+    - name: (ccmall_web) nginx 설정 문법 검사
+      command: nginx -t
+      changed_when: false
+
+    - name: (ccmall_web) nginx 서비스 실행 및 자동 시작
+      systemd:
+        name: nginx
+        enabled: true
+        state: restarted
+
+    - name: (ccmall_web) HTTP 80 포트 방화벽 허용
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
+      ignore_errors: yes
+
+  when: "'ccmall_web' in group_names"

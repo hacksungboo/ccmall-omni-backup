@@ -8,7 +8,6 @@
     name:
       - vim
       - git
-
       - wget
       - net-tools
       - unzip
@@ -35,6 +34,7 @@
     - name: (ccmall_con) 기본 관리 패키지 설치
       dnf:
         name:
+          - curl
           - awscli
           - openssh-clients
           - unzip
