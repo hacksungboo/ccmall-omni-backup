@@ -1,10 +1,4 @@
 ---
-- name: 필요한 패키지 업데이트
-  dnf:
-    update_cache: yes
-    name: "*"
-    state: latest
-
 - name: Grafana YUM 저장소 등록
   copy:
     dest: /etc/yum.repos.d/grafana.repo
@@ -17,20 +11,61 @@
       gpgcheck=1
       gpgkey=https://rpm.grafana.com/gpg.key
 
-- name: Prometheus 설치
-  dnf:
-    name: prometheus
-    state: present
-
 - name: Grafana 설치
   dnf:
     name: grafana
     state: present
 
-- name: Alertmanager 설치
-  dnf:
-    name: alertmanager
+- name: prometheus 그룹 생성
+  group:
+    name: prometheus
     state: present
+
+- name: prometheus 유저 생성
+  user:
+    name: prometheus
+    group: prometheus
+    shell: /sbin/nologin
+    create_home: no
+
+- name: Prometheus 다운로드
+  get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v2.51.0/prometheus-2.51.0.linux-amd64.tar.gz"
+    dest: "/tmp/prometheus.tar.gz"
+
+- name: Prometheus 압축 풀기
+  unarchive:
+    src: "/tmp/prometheus.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+
+- name: Prometheus 실행 파일 이동
+  copy:
+    src: "/tmp/prometheus-2.51.0.linux-amd64/prometheus"
+    dest: "/usr/local/bin/prometheus"
+    mode: '0755'
+    remote_src: yes
+
+- name: promtool 이동
+  copy:
+    src: "/tmp/prometheus-2.51.0.linux-amd64/promtool"
+    dest: "/usr/local/bin/promtool"
+    mode: '0755'
+    remote_src: yes
+
+- name: Prometheus 설정 디렉터리 생성
+  file:
+    path: /etc/prometheus
+    state: directory
+    owner: prometheus
+    group: prometheus
+
+- name: Prometheus 데이터 디렉터리 생성
+  file:
+    path: /var/lib/prometheus
+    state: directory
+    owner: prometheus
+    group: prometheus
 
 - name: Prometheus 설정 파일 복사
   copy:
@@ -49,6 +84,60 @@
     group: prometheus
     mode: '0644'
   notify: restart prometheus
+
+- name: Prometheus 서비스 파일 등록
+  copy:
+    dest: /etc/systemd/system/prometheus.service
+    content: |
+      [Unit]
+      Description=Prometheus
+      After=network.target
+      [Service]
+      User=prometheus
+      ExecStart=/usr/local/bin/prometheus \
+        --config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/var/lib/prometheus
+      Restart=always
+      [Install]
+      WantedBy=multi-user.target
+
+- name: Alertmanager 다운로드
+  get_url:
+    url: "https://github.com/prometheus/alertmanager/releases/download/v0.27.0/alertmanager-0.27.0.linux-amd64.tar.gz"
+    dest: "/tmp/alertmanager.tar.gz"
+
+- name: Alertmanager 압축 풀기
+  unarchive:
+    src: "/tmp/alertmanager.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+
+- name: Alertmanager 실행 파일 이동
+  copy:
+    src: "/tmp/alertmanager-0.27.0.linux-amd64/alertmanager"
+    dest: "/usr/local/bin/alertmanager"
+    mode: '0755'
+    remote_src: yes
+
+- name: Alertmanager 설정 디렉터리 생성
+  file:
+    path: /etc/alertmanager
+    state: directory
+
+- name: Alertmanager 서비스 파일 등록
+  copy:
+    dest: /etc/systemd/system/alertmanager.service
+    content: |
+      [Unit]
+      Description=Alertmanager
+      After=network.target
+      [Service]
+      User=prometheus
+      ExecStart=/usr/local/bin/alertmanager \
+        --config.file=/etc/alertmanager/alertmanager.yml
+      Restart=always
+      [Install]
+      WantedBy=multi-user.target
 
 - name: Prometheus 서비스 시작
   systemd:
@@ -70,12 +159,3 @@
     state: started
     enabled: yes
     daemon_reload: yes
-
-- name: Telegram 알림 테스트
-  uri:
-    url: "https://api.telegram.org/bot{{ telegram_token }}/sendMessage"
-    method: POST
-    body_format: json
-    body:
-      chat_id: "{{ chat_id }}"
-      text: "✅ 모니터링 설치 완료!"

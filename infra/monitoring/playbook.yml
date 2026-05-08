@@ -1,6 +1,6 @@
 ---
 - name: 모니터링 설치 (Prometheus + Grafana + Alertmanager)
-  hosts: mgmt
+  hosts: localhost
   become: yes
   roles:
     - monitoring
