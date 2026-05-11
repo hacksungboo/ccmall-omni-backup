@@ -17,9 +17,8 @@ Terraform으로 인프라 생성 후 Ansible Playbook이 자동으로 설치 및
 | Node Exporter | v1.7.0 | EC2-Web, EC2-Rec | 서버 메트릭 수집 |
 
 ---
-
 ## 디렉터리 구조
-
+```
 infra/monitoring/
 ├── playbook.yml                        # 모니터링 Playbook 진입점
 ├── sample.txt
@@ -32,10 +31,9 @@ infra/monitoring/
             │   ├── prometheus.yml      # Prometheus 설정
             │   └── alert_rules.yml     # 알림 규칙
             └── handlers/
-                └── main.yml            # 서비스 재시작 핸들러
-
+                └── main.yml            # 서비스 재시작 핸들러            
+```
 ---
-
 ## 자동화 흐름
 
 terraform apply
