@@ -114,3 +114,40 @@ systemctl status alertmanager
 ### Alertmanager failed 상태일 때
 sudo mkdir -p /var/lib/alertmanager
 sudo chown prometheus:prometheus /var/lib/al
+---
+
+## 실행 경로
+
+### Terraform (인프라 배포)
+cd ~/ccmall-omni-backup/infra/deployment/terraform
+terraform apply -auto-approve
+
+### Ansible (수동 실행 시)
+cd ~/ccmall-omni-backup/infra
+ANSIBLE_CONFIG=~/ccmall-omni-backup/infra/ansible.cfg \
+ansible-playbook monitoring/playbook.yml \
+  --private-key ~/ccmall-omni-backup/infra/deployment/terraform/ccmall-key.pem \
+  -v
+
+---
+
+## 실행 옵션 설명
+
+| 옵션 | 설명 |
+|------|------|
+| -auto-approve | terraform 확인 없이 바로 실행 |
+| --private-key | EC2 접속용 pem 파일 경로 지정 |
+| -v | Ansible 상세 로그 출력 (verbose) |
+| ANSIBLE_CONFIG | 사용할 ansible.cfg 파일 명시적 지정 |
+
+---
+
+## 주요 변수 위치
+
+| 변수 | 파일 위치 |
+|------|-----------|
+| Prometheus 스크랩 대상 (IP, 포트) | /etc/prometheus/prometheus.yml |
+| 알림 규칙 (임계값) | /etc/prometheus/alert_rules.yml |
+| Alertmanager 수신자 설정 (Telegram 등) | /etc/alertmanager/alertmanager.yml |
+| Ansible inventory (서버 IP) | ~/ccmall-omni-backup/infra/inventory/inventory.yml |
+| SSH 접속 키 | ~/ccmall-omni-backup/infra/deployment/terraform/ccmall-key.pem |
