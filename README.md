@@ -18,27 +18,27 @@
 ```
 ## 📁 2. Directory Structure
 
-project/
-├── app/                        # FastAPI 애플리케이션 (백엔드 로직)
-│   ├── api/                    # API 엔드포인트 (customers, inventory, orders)
-│   ├── core/                   # 시스템 설정 및 환경 변수 관리
-│   ├── crud/                   # Database CRUD 로직
-│   ├── models/                 # DB 테이블 스키마 정의
-│   ├── schemas/                # 데이터 검증 및 직렬화 (Pydantic)
-│   ├── services/               # 외부 서비스 연동 (S3, 메시지 전송 등)
-│   ├── tasks/                  # 백업 스케줄러 (APScheduler)
-│   └── main.py                 # 애플리케이션 엔트리포인트
-├── infra/                      # 인프라 및 운영 레이어
-│   ├── backup/                 # DB 백업 자동화
-│   ├── deployment/             # 인프라 구축 자동화
-│   ├── monitoring/             # Prometheus, Grafana 관찰 체계
-│   ├── recovery/               # 복구 시스템
-│   └── network/                # 기타 네트워크 설정
-│
-├── cicd/                       # GitHub Actions 파이프라인 설정
-├── docker/                     # 컨테이너 빌드 및 오케스트레이션 설정
-├── docs/                       # 기술 설계서 및 아키텍처 다이어그램
-└── requirements.txt            # 파이썬 의존성 패키지 명세
+```
+ccmall/
+├── app/                        # FastAPI 애플리케이션
+│   ├── api/                    # API 라우터
+│   ├── core/                   # DB 연결, 설정
+│   ├── crud/                   # DB CRUD 로직
+│   ├── models/                 # DB 모델
+│   ├── schemas/                # Pydantic 스키마
+│   ├── services/               # 외부 서비스 연동
+│   └── tasks/                  # APScheduler 백업/이관 태스크
+├── infra/
+│   ├── deployment/
+│   │   ├── ansible/            # 서버 설정 자동화
+│   │   └── terraform/          # AWS 인프라 코드
+│   ├── backup/                 # 백업 관련 스크립트
+│   ├── monitoring/             # Prometheus / Grafana
+│   └── recovery/               # 장애 복구 스크립트
+├── docs/                       # 프로젝트 문서
+├── cicd/                       # GitHub Actions 워크플로우
+├── static/                     # 정적 파일
+└── requirements.txt/           # 파이썬 의존성 패키지
 ```
 
 - ## 📅3. 프로젝트 진행 방식 (Operational Process)
