@@ -1,7 +1,7 @@
 # infra/deployment/ansible/ec2_bootstrap.yml
 ---
 - name: "EC2 인스턴스에 초기 세팅"
-  hosts: bootstrap_ec2
+  hosts: all
   become: yes
 
   tasks:
