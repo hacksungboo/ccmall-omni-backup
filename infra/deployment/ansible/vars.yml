@@ -1,0 +1,37 @@
+# deployment/ansible/vars.yml
+# ansible 실행환경에서 필요한 변수 모음.
+# 각각의 ansible 실행 playbook에서 vars_file로 불러와서 사용.
+
+# ansible 공통 변수 정의
+timezone: Asia/Seoul
+
+#DB 관련 변수
+# 패키지(pkg), 서비스(svc), 디렉토리 경로(dir), 포트
+db_pkg: "postgresql15"
+db_svc: "{{ 'postgresql' if ansible_distribution == 'Amazon' else 'postgresql-15' }}"
+db_dir: "{{ '/var/lib/pgsql/data' if ansible_distribution == 'Amazon' else '/var/lib/pgsql/15/data' }}"
+db_port: "5432"
+
+db_name: "test"
+db_user: "ccmall_user"
+db_pw: "1234"
+
+client_cidr: "0.0.0.0/0"
+
+# 도메인 / HTTPS
+ccmall_domain: "ccmall.example.com"
+certbot_email: "your-email@example.com"
+
+# Cloudflare Tunnel Token
+cloudflared_token: "여기에_Cloudflare_Tunnel_Token"
+
+app_name: ccmall
+app_user: ec2-user
+app_dir: /home/ec2-user/ccmall-omni-backup
+app_repo: "https://github.com/hacksungboo/ccmall-omni-backup.git"
+app_branch: master
+app_module: "app.main:app"
+app_port: 8000
+server_name: "_"
+
+database_url: "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"
