@@ -61,3 +61,23 @@ groups:
         annotations:
           summary: "백업 실패 {{ $labels.instance }}"
           description: "24시간 이상 백업이 되지 않았습니다"
+
+      # 온프레미스 메인 DB 다운 감지
+      - alert: 온프레미스DB다운
+        expr: up{job="onprem-db"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "온프레미스 메인 DB 다운 {{ $labels.instance }}"
+          description: "rocky01 메인 DB가 응답하지 않습니다. 예비 서버 전환 필요"
+
+      # 예비 DB 다운 감지
+      - alert: 예비DB다운
+        expr: up{job="ec2-db-1"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "예비 EC2-DB-1 다운 {{ $labels.instance }}"
+          description: "예비 DB 서버가 응답하지 않습니다"

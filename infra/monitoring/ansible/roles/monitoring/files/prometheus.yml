@@ -3,7 +3,7 @@ global:
   evaluation_interval: 15s
 
 rule_files:
-  - "alert_rules.yml"      # 알림 규칙 파일 연결!
+  - "alert_rules.yml"
 
 alerting:
   alertmanagers:
@@ -20,10 +20,14 @@ scrape_configs:
     static_configs:
       - targets: ['10.0.1.10:9100']
 
-  - job_name: 'recovery'
-    static_configs:
-      - targets: ['10.0.2.30:9100']
-
   - job_name: 'onprem-db'
     static_configs:
-      - targets: ['10.0.2.20:9100']
+      - targets: ['10.0.2.20:9100']    # rocky01 메인 DB (VMware)
+
+  - job_name: 'ec2-db-1'
+    static_configs:
+      - targets: ['IP_미정:9100']       # 예비 DB (상시 운영)
+
+  - job_name: 'ec2-db-2'
+    static_configs:
+      - targets: ['IP_미정:9100']       # 장애시 프로비저닝 서버
