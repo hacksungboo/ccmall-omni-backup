@@ -1,83 +1,126 @@
-- name: "PostgreSQL 설치 및 S3 백업 복구"
+- name: PostgreSQL 설치 및 S3 복구 + Tailscale 연결
   hosts: all
-  become: true  
+
+  become: true
 
   vars:
-    s3_bucket_name: ""  ### 리눅스 환경변수로 s3버킷 이름 넣도록 변경예정 일단 테스트시 본인 s3이름 넣어줘야합니다.
+
     backup_file_name: "full_db_backup.sql"
-    db_user_password: "user1" 
-    postgresql_global_config_options:
-      - option: unix_socket_directories
-        value: '/var/run/postgresql'
-      - option: log_directory
-        value: "{{ 'log' if ansible_os_family == 'RedHat' else '/var/log/postgresql' }}"
-      - option: listen_addresses
-        value: "*"
-    postgresql_hba_entries:
-      - { type: local, database: all, user: postgres, address: '', auth_method: peer }
-      - { type: host, database: all, user: all, address: '127.0.0.1/32', auth_method: md5 }
-      - { type: host, database: all, user: all, address: '::1/128', auth_method: md5 }
-      - { type: host, database: all, user: postgres, address: '0.0.0.0/0', auth_method: reject }
-      - { type: host, database: all, user: all, address: '0.0.0.0/0', auth_method: md5 }
 
-  roles:
-    - geerlingguy.postgresql
+    db_name: "ccmall_db"
 
-  post_tasks:
-    - name: "1. DB 유저 ccmall_user 생성"
+    db_user: "ccmall_user"
+
+    db_password: "user1"
+
+  tasks:
+
+    - name: 1. PostgreSQL 설치
+      dnf:
+        name:
+          - postgresql15
+          - postgresql15-server
+          - awscli
+        state: present
+
+    - name: 2. PostgreSQL 초기화
+      shell: |
+        postgresql-setup --initdb
+      args:
+        creates: /var/lib/pgsql/data/postgresql.conf
+
+    - name: 3. PostgreSQL 서비스 시작
+      systemd:
+        name: postgresql
+        state: started
+        enabled: true
+
+    - name: 4. listen_addresses 설정
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: '^#?listen_addresses'
+        line: "listen_addresses='*'"
+
+    - name: 5. pg_hba.conf 허용 추가
+      lineinfile:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        line: "host all all 0.0.0.0/0 md5"
+
+    - name: 6. PostgreSQL 재시작
+      systemd:
+        name: postgresql
+        state: restarted
+
+    - name: 7. DB User 생성
       become_user: postgres
-      postgresql_user:
-        name: ccmall_user
-        password: "{{ db_user_password }}"
-        role_attr_flags: "SUPERUSER"
 
-    - name: "1-2. ccmall_db 데이터베이스 생성"
+      shell: |
+        psql -tc "SELECT 1 FROM pg_roles WHERE rolname='{{ db_user }}'" | grep -q 1 || \
+        psql -c "CREATE USER {{ db_user }} WITH PASSWORD '{{ db_password }}' SUPERUSER;"
+
+    - name: 8. Database 생성
       become_user: postgres
-      postgresql_db:
-        name: ccmall_db
-        owner: ccmall_user
 
-    - name: "2. S3 버킷에서 백업 파일 다운로드"
-      ansible.builtin.shell:
-        cmd: "aws s3 cp s3://{{ s3_bucket_name }}/{{ backup_file_name }} /tmp/{{ backup_file_name }}"
-      become: true
-      become_user: ec2-user
+      shell: |
+        psql -lqt | cut -d \| -f 1 | grep -qw {{ db_name }} || \
+        createdb -O {{ db_user }} {{ db_name }}
 
-    - name: "3. 백업 파일 권한 설정"
-      ansible.builtin.file:
+    - name: 9. S3 백업 다운로드
+      shell: |
+        aws s3 cp \
+        s3://{{ s3_bucket_name }}/{{ backup_file_name }} \
+        /tmp/{{ backup_file_name }}
+
+    - name: 10. 백업 파일 권한 설정
+      file:
         path: "/tmp/{{ backup_file_name }}"
         owner: postgres
         group: postgres
         mode: '0644'
 
-    - name: "4. 데이터베이스 복구 실행 (대상 DB를 ccmall_db로 지정)"
-      ansible.builtin.shell:
-        cmd: "psql -f /tmp/{{ backup_file_name }} ccmall_db"
+    - name: 11. PostgreSQL 복구
       become_user: postgres
-      ignore_errors: true 
 
-    - name: "5. database.py 파일 내 DB_HOST IP 동적 수정"
-      delegate_to: localhost        
-      become: false                  
-      ansible.builtin.replace:
-        path: "../../app/core/database.py" 
-        regexp: '^DB_HOST\s*=\s*.*'
-        replace: 'DB_HOST = os.getenv("DB_HOST", "{{ inventory_hostname }}")'
+      shell: |
+        psql {{ db_name }} < /tmp/{{ backup_file_name }}
 
-    - name: "6. 파일 수정 결과 확인"
-      delegate_to: localhost
-      become: false
-      ansible.builtin.shell: "grep 'DB_HOST =' ../../app/core/database.py"
-      register: updated_host
+    - name: 12. Tailscale 설치
+      shell: |
+        curl -fsSL https://tailscale.com/install.sh | sh
+      args:
+        creates: /usr/bin/tailscale
 
-    - name: "7. 변경된 IP 출력"
+    - name: 13. tailscaled 서비스 시작
+      systemd:
+        name: tailscaled
+        state: started
+        enabled: true
+
+    - name: 14. Tailscale VPN 연결
+      shell: |
+        tailscale up \
+        --authkey {{ tailscale_auth_key }} \
+        --hostname ec2-db-2 \
+        --accept-routes
+
+    - name: 15. tailscale 상태 확인
+      shell: |
+        tailscale status
+      register: tailscale_result
+
+    - name: 16. tailscale 결과 출력
       debug:
-        msg: " database.py가 다음 IP로 업데이트되었습니다: {{ updated_host.stdout }}"
+        var: tailscale_result.stdout
 
-    - name: "8. [로컬 PC] FastAPI 서비스 재시작"
-      delegate_to: localhost
-      become: true                 
-      ansible.builtin.systemd:
-        name: ccmall_app 
-        state: restarted
-      ignore_errors: true
+    - name: 17. 테이블 목록 확인
+      become_user: postgres
+
+      shell: |
+        psql -d {{ db_name }} -c "\dt"
+      register: table_result
+
+    - name: 18. 복구 결과 출력
+      debug:
+        var: table_result.stdout
+
+##

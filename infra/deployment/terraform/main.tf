@@ -432,7 +432,13 @@ resource "terraform_data" "prepare_ansible_dirs" {
   }
 
   provisioner "local-exec" {
-    command = "mkdir -p ${local.inventory_dir}"
+    # 기존 폴더 생성 로직 + S3 버킷 이름 환경변수 등록 로직 통합
+    command = <<-EOT
+      mkdir -p ${local.inventory_dir}
+      echo "export BACKUP_S3_BUCKET='${aws_s3_bucket.ccmall_bucket.bucket}'" >> ~/.bashrc
+      # 현재 실행 중인 쉘 세션에도 즉시 반영
+      export BACKUP_S3_BUCKET='${aws_s3_bucket.ccmall_bucket.bucket}'
+    EOT
   }
 }
 # public ip와 private ip를 이용해서 infra/inventory/inventory.yml 파일 만들기
@@ -581,3 +587,4 @@ resource "terraform_data" "run_monitoring_playbook" {
     EOT
   }
 }
+

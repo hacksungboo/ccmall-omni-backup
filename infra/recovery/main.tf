@@ -1,9 +1,15 @@
 terraform {
   required_version = "~> 1.14.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 6.0"
+    }
+
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
     }
   }
 }
@@ -12,160 +18,172 @@ provider "aws" {
   region = "ap-northeast-2"
 }
 
-resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true
-  tags                 = { Name = "lecture-vpc" }
-}
 
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "lecture-igw" }
-}
-
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
-  tags                    = { Name = "lecture-subnet" }
-}
-
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.main.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
+data "aws_vpc" "ccmall_vpc" {
+  filter {
+    name   = "tag:Name"
+    values = ["ccmall-vpc"]
   }
 }
 
-resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.public_rt.id
+data "aws_subnet" "private_subnet" {
+  filter {
+    name   = "tag:Name"
+    values = ["ccmall-private-subnet"]
+  }
 }
 
-resource "tls_private_key" "pk" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "kp" {
-  key_name   = "lecture-key"
-  public_key = tls_private_key.pk.public_key_openssh
-}
-
-resource "local_file" "ssh_key" {
-  filename        = "${path.module}/lecture-key.pem"
-  content         = tls_private_key.pk.private_key_pem
-  file_permission = "0600"
-}
-
-resource "aws_security_group" "ssh_sg" {
-  name   = "allow-ssh"
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+data "aws_security_group" "sg_rec" {
+  filter {
+    name   = "group-name"
+    values = ["SG-Rec"]
   }
 
-  ingress {
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+  vpc_id = data.aws_vpc.ccmall_vpc.id
+}
+
+data "aws_key_pair" "ccmall_key" {
+  key_name = "ccmall-key"
+}
+
+data "aws_iam_instance_profile" "ec2_profile" {
+  name = "EC2-S3-Instance-Profile"
+}
+
+data "aws_instance" "ccmall_web" {
+  filter {
+    name   = "tag:Name"
+    values = ["ccmall-Web"]
   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  filter {
+    name   = "instance-state-name"
+    values = ["running"]
   }
 }
 
 data "aws_ami" "latest_al2023" {
   most_recent = true
-  owners      = ["amazon"]
+
+  owners = ["amazon"]
+
   filter {
     name   = "name"
     values = ["al2023-ami-*-x86_64"]
   }
 }
 
-resource "aws_iam_role" "ec2_s3_role" {
-  name = "EC2-S3-Access-Role2"
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action    = "sts:AssumeRole"
-      Effect    = "Allow"
-      Principal = { Service = "ec2.amazonaws.com" }
-    }]
-  })
+resource "aws_instance" "ec2_db_2" {
+
+  ami           = data.aws_ami.latest_al2023.id
+
+  instance_type = "t3.micro"
+
+  subnet_id = data.aws_subnet.private_subnet.id
+
+  private_ip = "10.0.2.40"
+
+  associate_public_ip_address = false
+
+  vpc_security_group_ids = [
+    data.aws_security_group.sg_rec.id
+  ]
+
+  key_name = data.aws_key_pair.ccmall_key.key_name
+
+  iam_instance_profile = data.aws_iam_instance_profile.ec2_profile.name
+
+  root_block_device {
+    volume_size           = 20
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname ec2-db-2
+grep -q "127.0.0.1 ec2-db-2" /etc/hosts || echo "127.0.0.1 ec2-db-2" >> /etc/hosts
+EOF
+
+  tags = {
+    Name = "ec2-db-2"
+  }
 }
 
-resource "aws_iam_role_policy_attachment" "s3_full_access" {
-  role       = aws_iam_role.ec2_s3_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
-}
+resource "local_file" "inventory" {
 
-resource "aws_iam_instance_profile" "ec2_profile" {
-  name = "EC2-S3-Instance-Profile2"
-  role = aws_iam_role.ec2_s3_role.name
-}
-
-resource "aws_instance" "my_ec2" {
-  ami                    = data.aws_ami.latest_al2023.id
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public_subnet.id
-  vpc_security_group_ids = [aws_security_group.ssh_sg.id]
-  key_name               = aws_key_pair.kp.key_name
-  iam_instance_profile   = aws_iam_instance_profile.ec2_profile.name
-  tags                   = { Name = "ec2-db" }
-}
-
-resource "local_file" "ansible_inventory" {
   filename = "${path.module}/inventory.yml"
+
   content = yamlencode({
     all = {
       hosts = {
-        "${aws_instance.my_ec2.public_ip}" = {
-          ansible_user                 = "ec2-user"
-          ansible_ssh_private_key_file = "${path.module}/lecture-key.pem"
+
+        "ec2-db-2" = {
+
+          ansible_host = aws_instance.ec2_db_2.private_ip
+
+          ansible_user = "ec2-user"
+
+          ansible_ssh_private_key_file = "../deployment/terraform/ccmall-key.pem"
+
+          ansible_ssh_common_args = "-o ProxyCommand=\"ssh -i ../deployment/terraform/ccmall-key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ec2-user@${data.aws_instance.ccmall_web.public_ip}\""
         }
       }
     }
   })
 }
 
-resource "local_file" "ansible_config" {
+resource "local_file" "ansible_cfg" {
+
   filename = "${path.module}/ansible.cfg"
-  content  = <<-EOF
-        [defaults]
-        inventory = ./inventory.yml
-        host_key_checking = False
-    EOF
+
+  content = join("\n", [
+    "[defaults]",
+    "inventory = ./inventory.yml",
+    "host_key_checking = False",
+    "remote_user = ec2-user",
+    "private_key_file = ../deployment/terraform/ccmall-key.pem",
+    "interpreter_python = auto_silent",
+    ""
+  ])
 }
 
-resource "terraform_data" "wait_for_instance" {
-  depends_on = [aws_instance.my_ec2, local_file.ansible_inventory, local_file.ansible_config]
+resource "terraform_data" "wait_for_ec2" {
+
+  depends_on = [
+    aws_instance.ec2_db_2,
+    local_file.inventory,
+    local_file.ansible_cfg
+  ]
+
   provisioner "local-exec" {
-    command = "sleep 30"
+    command = "sleep 40"
   }
 }
 
-# ------- ansible playbook  ---------
-resource "terraform_data" "ansible_run" {
-  depends_on = [terraform_data.wait_for_instance]
+resource "terraform_data" "run_ansible" {
+
+  depends_on = [
+    terraform_data.wait_for_ec2,
+    local_file.inventory
+  ]
 
   provisioner "local-exec" {
-    command = "ANSIBLE_SSH_PIPELINING=1 ansible-playbook site.yml -e \"{'new_db_ip': '${aws_instance.my_ec2.public_ip}', 'postgresql_packages': ['postgresql15', 'postgresql15-server', 'postgresql15-contrib'], 'postgresql_daemon': 'postgresql', 'postgresql_bin_path': '/usr/bin', 'postgresql_data_dir': '/var/lib/pgsql/data'}\""
+
+    command = <<-EOT
+export ANSIBLE_CONFIG=./ansible.cfg
+
+ANSIBLE_SSH_PIPELINING=1 ansible-playbook site.yml \
+-e "s3_bucket_name=$BACKUP_S3_BUCKET" \
+-e "tailscale_auth_key=$TAILSCALE_AUTH_KEY"
+EOT
+
   }
 }
+
+output "ec2_db_2_private_ip" {
+  description = "Recovery DB private ip"
+  value       = aws_instance.ec2_db_2.private_ip
+}
+
+##
