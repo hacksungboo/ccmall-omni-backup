@@ -1,0 +1,7 @@
+"all":
+  "hosts":
+    "EC2-Rec":
+      "ansible_host": "10.0.2.30"
+      "ansible_ssh_common_args": "-o ProxyJump=%r@54.180.126.42 -o StrictHostKeyChecking=no"
+    "EC2-Web":
+      "ansible_host": "54.180.126.42"
