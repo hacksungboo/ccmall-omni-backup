@@ -126,6 +126,14 @@
     owner: prometheus
     group: prometheus
 
+- name: Alertmanager 설정 디렉터리 생성
+  file:
+    path: /etc/alertmanager
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: '0755'
+    
 - name: Alertmanager 설정 파일 복사
   template:
     src: alertmanager.yml
