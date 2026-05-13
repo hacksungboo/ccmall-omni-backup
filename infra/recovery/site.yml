@@ -122,3 +122,5 @@
     - name: 18. 복구 결과 출력
       debug:
         var: table_result.stdout
+
+##
