@@ -1,0 +1,87 @@
+---
+- name: "PostgreSQL 설치 및 DB, 테이블 자동 셋업"
+  hosts: ccmall-Rec  # DB가 설치될 대상 서버
+  become: yes
+
+  tasks:
+    - name: "1. PostgreSQL 15 서버 설치 (Amazon Linux 2023 기준)"
+      dnf:
+        name: 
+          - postgresql15-server
+          - postgresql15
+        state: present
+
+    - name: "2. PostgreSQL DB 초기화"
+      shell: postgresql-setup --initdb
+      args:
+        creates: /var/lib/pgsql/data/postgresql.conf
+
+    - name: "3. 외부 접속 허용 설정 (postgresql.conf)"
+      lineinfile:
+        path: /var/lib/pgsql/data/postgresql.conf
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+
+    - name: "4. 외부 접속 권한 설정 (pg_hba.conf)"
+      lineinfile:
+        path: /var/lib/pgsql/data/pg_hba.conf
+        line: "host    all             all             0.0.0.0/0               md5"
+        insertafter: EOF
+
+    - name: "5. PostgreSQL 서비스 재시작 및 활성화"
+      systemd:
+        name: postgresql
+        state: restarted
+        enabled: yes
+
+    - name: "6. ccmall_user 및 ccmall_db 생성 (이미 있으면 무시)"
+      become_user: postgres
+      shell: |
+        psql -c "CREATE USER ccmall_user WITH PASSWORD 'user1';" || true
+        psql -c "CREATE DATABASE ccmall_db OWNER ccmall_user;" || true
+
+    - name: "7. 테이블 생성용 통합 SQL 파일 생성"
+      copy:
+        dest: "/tmp/init_tables.sql"
+        content: |
+          CREATE TABLE IF NOT EXISTS customers (
+              id VARCHAR(20) PRIMARY KEY,
+              password VARCHAR(255) NOT NULL,
+              name VARCHAR(20) NOT NULL,
+              birth_date DATE,
+              address TEXT,
+              email VARCHAR(30) UNIQUE,
+              phone_number VARCHAR(20) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS inventorys (
+              item_id SERIAL PRIMARY KEY,
+              item_name VARCHAR(255) NOT NULL,
+              quantity INTEGER DEFAULT 0
+          );
+          CREATE TABLE IF NOT EXISTS orders (
+              order_id SERIAL PRIMARY KEY,
+              item_id INTEGER REFERENCES inventorys(item_id),
+              customer_id VARCHAR(50) REFERENCES customers(id),
+              order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              order_quantity INTEGER DEFAULT 1
+          );
+          CREATE TABLE IF NOT EXISTS admins (
+              id SERIAL PRIMARY KEY,
+              username VARCHAR(50) NOT NULL UNIQUE,
+              password VARCHAR(255) NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_inventorys_item_id ON inventorys(item_id);
+          CREATE INDEX IF NOT EXISTS idx_customers_id ON customers(id);
+          CREATE INDEX IF NOT EXISTS idx_admins_id ON admins(id);
+          CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
+          
+          GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
+          GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
+          
+          INSERT INTO admins (username, password) 
+          SELECT 'admin', 'password'
+          WHERE NOT EXISTS (SELECT 1 FROM admins WHERE username = 'admin');
+
+    - name: "8. ccmall_db에 테이블 및 기초 데이터 밀어넣기"
+      become_user: postgres
+      shell: psql -d ccmall_db -f /tmp/init_tables.sql

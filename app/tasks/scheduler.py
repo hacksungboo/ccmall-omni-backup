@@ -8,118 +8,104 @@ from sqlalchemy.orm import Session
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-# [주의] DB 모델 및 세션 설정은 본인의 프로젝트 경로에 맞게 임포트하세요.
-from app.core.database import SessionLocal 
-from app.models.schema import Order
+# ==========================================
+# 환경 변수 설정
+# ==========================================
+DB_NAME = os.getenv("DB_NAME", "ccmall_db")
+DB_USER = os.getenv("DB_USER", "ccmall_user")
+DB_PASS = os.getenv("DB_PASS", "user1")
+DB_HOST = os.getenv("DB_HOST", "172.16.8.201")  # 온프레미스 DB 호스트
 
-DB_NAME = "ccmall_db"
-DB_USER = "ccmall_user"
+# .bashrc에 저장하신 BACKUP_S3_BUCKET 환경변수를 읽어옵니다.
+BUCKET_NAME = os.getenv("BACKUP_S3_BUCKET") 
+###   print(BUCKET_NAME)  --- 테스트용 s3 버킷 이름 출력 코드 마지막에 삭제예정
+# 복구 및 동기화 대상 (예비 DB) 정보
+REC_DB_HOST = os.getenv("REC_DB_HOST", "100.68.1.23")
+REC_DB_PASS = os.getenv("REC_DB_PASS", "user1")
 
-DB_HOST = "172.16.8.201"  
-
-DB_PASS = "user1"  
-
-BUCKET_NAME = "ccmall-bucket-99a9" 
 LOCAL_BACKUP_DIR = "/tmp/db_backups"
 
 def run_integrated_backup_process():
+    # S3 버킷 환경변수 체크
+    if not BUCKET_NAME:
+        print(f" 🚨 [오류] BACKUP_S3_BUCKET 환경변수가 설정되지 않았습니다. (현재 값: None)", file=sys.stderr)
+        print("터미널에서 'export BACKUP_S3_BUCKET=진짜_버킷_이름'을 실행해주세요.", file=sys.stderr)
+        return
+
     now = datetime.datetime.now()
-    three_months_ago = now - datetime.timedelta(days=90)
-    timestamp = now.strftime("%Y%m%d_%H%M%S")
-    filename = f"ccmall_full_{timestamp}.sql"
+    
+    # ---------------------------------------------------------
+    # [핵심 변경] 파일명을 타임스탬프 대신 고정된 이름으로 설정 (덮어쓰기용)
+    # ---------------------------------------------------------
+    filename = "full_db_backup.sql"
     local_path = os.path.join(LOCAL_BACKUP_DIR, filename)
     
-    print(f"[{now.strftime('%Y-%m-%d %H:%M:%S')}]  데이터 백업 및 자동 동기화 프로세스 시작")
+    # S3에 저장될 경로 (폴더/파일명)
+    s3_key = f"backups/{filename}"
 
-    # [1단계] 로컬 임시 디렉토리 생성
+    # 임시 폴더 생성
     if not os.path.exists(LOCAL_BACKUP_DIR):
         os.makedirs(LOCAL_BACKUP_DIR)
 
-    # [2단계] pg_dump 실행 (로컬 DB -> 파일)
+    # [1단계] 로컬 DB 덤프 (백업)
     try:
-        os.environ["PGPASSWORD"] = DB_PASS 
-        subprocess.run(
-            f"pg_dump -h {DB_HOST} -U {DB_USER} -d {DB_NAME} -f {local_path}", 
-            shell=True, check=True
-        )
+        os.environ["PGPASSWORD"] = DB_PASS
+        dump_command = f"pg_dump -h {DB_HOST} -U {DB_USER} -d {DB_NAME} -f {local_path}"
+        subprocess.run(dump_command, shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         print(f"   [백업] 로컬 DB 덤프 완료: {local_path}")
     except subprocess.CalledProcessError as e:
-        print(f"   [백업] DB 덤프 실패 (네트워크/비밀번호 확인 필요): {e}", file=sys.stderr)
+        print(f"   [오류] 로컬 DB 덤프 실패: {e.stderr.decode('utf-8')}", file=sys.stderr)
         return
 
-    # [3단계] S3 업로드 (boto3)
+    # [2단계] S3 업로드
     try:
         s3 = boto3.client('s3')
-        s3_key = f"backups/cold/{now.strftime('%Y-%m')}/{filename}"
         s3.upload_file(local_path, BUCKET_NAME, s3_key)
-        print(f"   [보관] S3 업로드 성공 (Cold Archive): {s3_key}")
+        print(f"   [보관] AWS S3 업로드 성공: s3://{BUCKET_NAME}/{s3_key}")
     except Exception as e:
-        print(f"   [보관] AWS S3 업로드 에러 (IAM 권한 확인 필요): {e}", file=sys.stderr)
+        print(f"   [오류] AWS S3 업로드 에러: {e}", file=sys.stderr)
         return
 
-    # =========================================================
-    # [추가] 3.5단계: 예비 DB(EC2-Rec)로 자동 동기화 (Restore)
-    # =========================================================
-    REC_DB_HOST = "10.0.2.30"  # 데이터를 밀어넣을 예비 DB IP
-    REC_DB_PASS = "user1"      # 예비 DB 비밀번호
-
+    # [3단계] 예비 DB(EC2-Rec)로 자동 동기화 (Restore)
     try:
         print(f"   [동기화] 예비 DB 서버({REC_DB_HOST})로 데이터 복제 중...")
         os.environ["PGPASSWORD"] = REC_DB_PASS 
         
-        # psql을 이용해 방금 만든 sql 파일을 예비 DB에 실행(밀어넣기)
         subprocess.run(
             f"psql -h {REC_DB_HOST} -U {DB_USER} -d {DB_NAME} -f {local_path}", 
-            shell=True, check=True, stdout=subprocess.DEVNULL
+            shell=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE
         )
-        print(f"   [동기화] 예비 DB 세팅 완료! 언제든 Failover가 가능합니다. 🛡️")
+        print(f"   [동기화] 예비 DB 세팅 완료! Failover 준비 완료. ")
     except subprocess.CalledProcessError as e:
-        print(f"   [동기화] 예비 DB 동기화 실패: {e}", file=sys.stderr)
-    # =========================================================
+        print(f"   [오류] 예비 DB 동기화 실패: {e.stderr.decode('utf-8') if e.stderr else e}", file=sys.stderr)
 
-    # [4단계] 3개월 이전 데이터 정리 (주석 처리됨)
-    """
-    db: Session = SessionLocal()
-    try:
-        stmt = delete(Order).where(Order.order_time < three_months_ago)
-        result = db.execute(stmt)
-        db.commit()
-        print(f"   {three_months_ago} 이전 콜드 데이터({result.rowcount}건) 정리 완료.")
-    except Exception as e:
-        db.rollback()
-        print(f"   DB 정리 중 오류: {e}")
-    finally:
-        db.close()
-    """
-
-    # [5단계] 로컬 임시 파일 삭제
+    # [4단계] 로컬 임시 파일 삭제
     if os.path.exists(local_path):
         os.remove(local_path)
-        print(f"    로컬 임시 파일({filename}) 청소 완료.")
+        print(f"   [청소] 로컬 임시 파일({filename}) 삭제 완료.")
     
-    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 종료되었습니다.\n")
+    print(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 자동 백업/동기화 프로세스 종료되었습니다.\n")
+
 
 if __name__ == "__main__":
-    # 테스트 모드: 즉시 1회 실행하여 작동 여부 확인
-    print("--- 테스트 모드: 백업 및 동기화를 즉시 1회 실행합니다 ---")
+    print("==============================================")
+    print("      CCmall 자동 백업 & 동기화 시스템        ")
+    print("==============================================")
+    print(f"대상 버킷: {BUCKET_NAME}")
+    
+    # 테스트 모드: 즉시 1회 실행
+    print("--- 테스트 모드: 환경변수 기반 백업 및 동기화 즉시 실행 ---")
     run_integrated_backup_process() 
 
     # 정기 스케줄러 가동 (매일 01:00)
+    print("스케줄: 매일 오전 01:00 자동 실행 대기 중...")
     scheduler = BlockingScheduler()
     scheduler.add_job(
-        run_integrated_backup_process, 
-        'cron', 
-        hour=1, 
-        minute=0,
-        id="daily_backup_job"
+        run_integrated_backup_process,
+        CronTrigger(hour=1, minute=0)
     )
-
-    print("==============================================")
-    print("      CCmall 자동 백업 & Failover 준비 시스템      ")
-    print("==============================================")
-    print("스케줄: 매일 오전 01:00 자동 실행 대기 중...")
     
     try:
         scheduler.start()
-    except (KeyboardInterrupt, SystemExit):
-        print(" 스케줄러 종료")
+    except KeyboardInterrupt:
+        print("스케줄러가 수동으로 종료되었습니다.")

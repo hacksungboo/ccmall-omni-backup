@@ -153,3 +153,37 @@ resource "terraform_data" "run_monitoring_playbook" {
     EOT
   }
 }
+
+
+resource "terraform_data" "run_db_setup_playbook" {
+
+  depends_on = [
+    aws_instance.ccmall_rec,
+    local_file.ansible_inventory,
+    terraform_data.bootstrap_user1 # 부트스트랩(user1 생성 등)이 무조건 먼저 끝나야 함
+  ]
+
+  triggers_replace = {
+    rec_instance_id = aws_instance.ccmall_rec.id
+    bootstrap_id    = terraform_data.bootstrap_user1.id
+  }
+
+  provisioner "local-exec" {
+    working_dir = local.infra_dir
+
+    command = <<-EOT
+      echo "======================================"
+      echo " Ansible DB Setup Playbook 시작!"
+      echo "======================================"
+      
+      ANSIBLE_CONFIG=${local.ansible_cfg} \
+      ANSIBLE_SSH_PIPELINING=1 \
+      ansible-playbook deployment/ansible/db_setup.yml
+
+      echo "======================================"
+      echo " DB Setup Playbook 완료!"
+      echo "======================================"
+    EOT
+  }
+
+}

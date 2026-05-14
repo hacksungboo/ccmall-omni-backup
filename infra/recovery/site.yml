@@ -1,31 +1,22 @@
 - name: PostgreSQL 설치 및 S3 복구 + Tailscale 연결
   hosts: all
-
   become: true
 
   vars:
-
-    backup_file_name: "full_db_backup.sql"
-
+    # [수정] scheduler.py에서 저장한 실제 S3 경로 지정
+    backup_s3_path: "backups/full_db_backup.sql"
     db_name: "ccmall_db"
-
     db_user: "ccmall_user"
-
     db_password: "user1"
 
   tasks:
-
     - name: 1. PostgreSQL 설치
       dnf:
-        name:
-          - postgresql15
-          - postgresql15-server
-          - awscli
+        name: [postgresql15, postgresql15-server, awscli]
         state: present
 
     - name: 2. PostgreSQL 초기화
-      shell: |
-        postgresql-setup --initdb
+      shell: postgresql-setup --initdb
       args:
         creates: /var/lib/pgsql/data/postgresql.conf
 
@@ -53,40 +44,33 @@
 
     - name: 7. DB User 생성
       become_user: postgres
-
       shell: |
-        psql -tc "SELECT 1 FROM pg_roles WHERE rolname='{{ db_user }}'" | grep -q 1 || \
-        psql -c "CREATE USER {{ db_user }} WITH PASSWORD '{{ db_password }}' SUPERUSER;"
+        psql -c "CREATE USER {{ db_user }} WITH PASSWORD '{{ db_password }}';" || true
 
     - name: 8. Database 생성
       become_user: postgres
-
       shell: |
         psql -lqt | cut -d \| -f 1 | grep -qw {{ db_name }} || \
         createdb -O {{ db_user }} {{ db_name }}
 
-    - name: 9. S3 백업 다운로드
+    - name: 9. S3 백업 다운로드 (경로 불일치 해결)
       shell: |
-        aws s3 cp \
-        s3://{{ s3_bucket_name }}/{{ backup_file_name }} \
-        /tmp/{{ backup_file_name }}
+        aws s3 cp s3://{{ s3_bucket_name }}/{{ backup_s3_path }} /tmp/full_db_backup.sql
 
     - name: 10. 백업 파일 권한 설정
       file:
-        path: "/tmp/{{ backup_file_name }}"
+        path: "/tmp/full_db_backup.sql"
         owner: postgres
         group: postgres
         mode: '0644'
 
-    - name: 11. PostgreSQL 복구
+    - name: 11. PostgreSQL 데이터 복구
       become_user: postgres
-
       shell: |
-        psql {{ db_name }} < /tmp/{{ backup_file_name }}
+        psql {{ db_name }} < /tmp/full_db_backup.sql
 
     - name: 12. Tailscale 설치
-      shell: |
-        curl -fsSL https://tailscale.com/install.sh | sh
+      shell: curl -fsSL https://tailscale.com/install.sh | sh
       args:
         creates: /usr/bin/tailscale
 
@@ -98,29 +82,11 @@
 
     - name: 14. Tailscale VPN 연결
       shell: |
-        tailscale up \
-        --authkey {{ tailscale_auth_key }} \
-        --hostname ec2-db-2 \
-        --accept-routes
+        tailscale up --authkey {{ tailscale_auth_key }} --accept-routes --accept-dns=false || true
 
-    - name: 15. tailscale 상태 확인
-      shell: |
-        tailscale status
-      register: tailscale_result
-
-    - name: 16. tailscale 결과 출력
-      debug:
-        var: tailscale_result.stdout
-
-    - name: 17. 테이블 목록 확인
-      become_user: postgres
-
-      shell: |
-        psql -d {{ db_name }} -c "\dt"
-      register: table_result
-
-    - name: 18. 복구 결과 출력
-      debug:
-        var: table_result.stdout
-
-##
+    - name: 15. 로컬 database.py IP 자동 변경 (경로 수정 완료)
+      delegate_to: localhost
+      lineinfile:
+        path: "../../app/core/database.py" 
+        regexp: 'DB_HOST = os.getenv\("DB_HOST", .*\)'
+        line: 'DB_HOST = os.getenv("DB_HOST", "{{ ansible_host }}")'
