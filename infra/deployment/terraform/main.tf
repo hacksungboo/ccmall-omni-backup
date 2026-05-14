@@ -15,6 +15,15 @@ terraform {
       version = "0.17.2"
     }
   }
+  # terraform 상태관리 (CI/CD)
+  backend "s3" {
+    bucket = "ccmall-tfstate-bucket-f16ce1d4" # 미리 생성한 s3 버킷
+    key = "deployment/terraform.tfstate"
+    region = "ap-northeast-2"
+    dynamodb_table = "ccmall-terraform-lock" # 미리 준비된 dynamodb 테이블
+    encrypt = true
+  }
+  
 }
 
 # --- 변수 선언

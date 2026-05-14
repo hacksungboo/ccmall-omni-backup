@@ -1,4 +1,107 @@
 # .github/workflows/deploy.yml
 
-# 참고 예시는 testvm1에 있습니다
-# /root/fastapi/app01/.github/workflows/deploy.yml 참고할 것.
+name: "Infra Deploy"
+
+on:
+  pull_request:
+    branches: ["master"]
+    paths:
+      - "infra/**"
+  push:
+    branches: ["master"]
+    paths:
+      - "infra/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init & plan
+        working-directory: infra/deployment/terraform
+        run: |
+          terraform init
+          terraform plan -no-color 2>&1 | tee plan_output.txt
+
+      - name: Post Plan to PR comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.TOKEN_GITHUB }}
+          script: |
+            const fs = require('fs');
+            // 파일 경로는 checkout한 최상단 폴더 기준이므로 주의
+            const plan = fs.readFileSync('infra/deployment/terraform/plan_output.txt', 'utf8');
+            const output = `### 📋 Terraform Plan 결과\n\`\`\`text\n${plan}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init & apply
+        working-directory: infra/deployment/terraform
+        run: |
+          terraform init
+          terraform apply --auto-approve
+
+      # ===== Ansible 관련 step은 일단 주석 처리 =====
+      # Terraform 동작 검증 후 하나씩 활성화 예정
+      # 활성화 시 deployment/ansible/setting/main.yml → 실제 playbook 경로로 수정 필요
+      # (실제 파일은 deployment/ansible/roles/setting/tasks/main.yml = role의 일부라 직접 실행 X)
+      #
+      # - name: Setup SSH key
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/ansiblekey.pem
+      #     chmod 600 ~/.ssh/ansiblekey.pem
+      #
+      # - name: Install Ansible
+      #   run: pip install ansible
+      #
+      # - name: Setup servers
+      #   working-directory: infra
+      #   env:
+      #     ANSIBLE_HOST_KEY_CHECKING: "False"
+      #   run: ANSIBLE_CONFIG=ansible.cfg ansible-playbook deployment/ansible/setting/main.yml
+      #
+      # - name: Setup monitoring
+      #   working-directory: infra
+      #   env:
+      #     ANSIBLE_HOST_KEY_CHECKING: "False"
+      #   run: ANSIBLE_CONFIG=ansible.cfg ansible-playbook monitoring/playbook.yml
+      #
+      # - name: Setup Tailscale
+      #   working-directory: infra
+      #   env:
+      #     ANSIBLE_HOST_KEY_CHECKING: "False"
+      #     TAILSCALE_AUTHKEY: ${{ secrets.TAILSCALE_AUTHKEY }}
+      #   run: ANSIBLE_CONFIG=ansible.cfg ansible-playbook deployment/ansible/setting/tasks/vpn_setup.yml
