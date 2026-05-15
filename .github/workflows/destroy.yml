@@ -14,7 +14,15 @@ jobs:
       TF_VAR_onprem_cidr: ${{ secrets.TF_VAR_ONPREM_CIDR }}
       TF_VAR_tailnet_name: ${{ secrets.TF_VAR_TAILNET_NAME }}
       TF_VAR_tailscale_api_key: ${{ secrets.TF_VAR_TAILSCALE_API_KEY }}
-
+      TF_VAR_s3_bucket_prefix: ${{ secrets.TF_VAR_S3_BUCKET_PREFIX }}
+      TF_VAR_vpc_cidr: ${{ secrets.TF_VAR_VPC_CIDR }}
+      TF_VAR_public_subnet_cidr: ${{ secrets.TF_VAR_PUBLIC_SUBNET_CIDR }}
+      TF_VAR_private_subnet_cidr: ${{ secrets.TF_VAR_PRIVATE_SUBNET_CIDR }}
+      TF_VAR_ssh_allowed_cidr: ${{ secrets.TF_VAR_SSH_ALLOWED_CIDR }}
+      TF_VAR_web_allowed_cidr: ${{ secrets.TF_VAR_WEB_ALLOWED_CIDR }}
+      TF_VAR_web_node_exporter_allowed_cidr: ${{ secrets.TF_VAR_WEB_NODE_EXPORTER_ALLOWED_CIDR }}
+      TF_VAR_mgmt_cidr: ${{ secrets.TF_VAR_MGMT_CIDR }}
+      
     steps:
       - uses: actions/checkout@v4
 
