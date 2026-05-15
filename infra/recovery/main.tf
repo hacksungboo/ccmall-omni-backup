@@ -14,11 +14,21 @@ terraform {
   }
 }
 
+### 1. 변수 선언 (줄바꿈 및 표준 문법 적용)
+variable "tailscale_api_key" {
+  type      = string
+  sensitive = true
+}
+
+variable "tailnet_name" {
+  type = string
+}
+
 provider "aws" {
   region = "ap-northeast-2"
 }
 
-
+### 2. 데이터 소스 (기존 인프라 참조)
 data "aws_vpc" "ccmall_vpc" {
   filter {
     name   = "tag:Name"
@@ -73,16 +83,12 @@ data "aws_ami" "latest_al2023" {
   }
 }
 
-resource "aws_instance" "ec2_db_2" {
-
-  ami           = data.aws_ami.latest_al2023.id
-
-  instance_type = "t3.micro"
-
-  subnet_id = data.aws_subnet.private_subnet.id
-
-  private_ip = "10.0.2.40"
-
+### 3. 리커버리 EC2 생성
+resource "aws_instance" "ccmall-Recovery-ec2" {
+  ami                         = data.aws_ami.latest_al2023.id
+  instance_type               = "t3.micro"
+  subnet_id                   = data.aws_subnet.private_subnet.id
+  private_ip                  = "10.0.2.40"
   associate_public_ip_address = false
 
   vpc_security_group_ids = [
@@ -110,6 +116,7 @@ EOF
   }
 }
 
+### 4. 앤서블 인벤토리 생성
 resource "local_file" "inventory" {
 
   filename = "${path.module}/inventory.yml"
@@ -133,6 +140,7 @@ resource "local_file" "inventory" {
   })
 }
 
+### 5. 앤서블 설정 파일 생성
 resource "local_file" "ansible_cfg" {
 
   filename = "${path.module}/ansible.cfg"
@@ -148,6 +156,7 @@ resource "local_file" "ansible_cfg" {
   ])
 }
 
+### 6. 부팅 대기
 resource "terraform_data" "wait_for_ec2" {
 
   depends_on = [
@@ -161,6 +170,7 @@ resource "terraform_data" "wait_for_ec2" {
   }
 }
 
+### 7. 플레이북 실행
 resource "terraform_data" "run_ansible" {
 
   depends_on = [
