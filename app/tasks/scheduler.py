@@ -20,15 +20,7 @@ DB_HOST = os.getenv("DB_HOST", "172.16.8.201")  # 온프레미스 DB 호스트
 BUCKET_NAME = os.getenv("BACKUP_S3_BUCKET") 
 ###   print(BUCKET_NAME)  --- 테스트용 s3 버킷 이름 출력 코드 마지막에 삭제예정
 # 복구 및 동기화 대상 (예비 DB) 정보
-<<<<<<< HEAD
-<<<<<<< HEAD
-REC_DB_HOST = os.getenv("REC_DB_HOST", "100.68.1.23")
-=======
-REC_DB_HOST = os.getenv("REC_DB_HOST", "100.120.245.81")
->>>>>>> df906ad (수정)
-=======
-REC_DB_HOST = os.getenv("REC_DB_HOST", "100.115.3.62")
->>>>>>> d2a6e24 (ccmall-rec 프로비저닝시 db환경 구축 및 장애발생시  ccmall-recovery-2 ec2 생성 수정)
+REC_DB_HOST = os.getenv("REC_DB_HOST", "100.73.147.77")
 REC_DB_PASS = os.getenv("REC_DB_PASS", "user1")
 
 LOCAL_BACKUP_DIR = "/tmp/db_backups"

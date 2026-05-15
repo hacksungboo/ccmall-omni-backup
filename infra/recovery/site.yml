@@ -4,7 +4,7 @@
 
   vars:
     # [수정] scheduler.py에서 저장한 실제 S3 경로 지정
-    backup_s3_path: "backups/full_db_backup.sql"
+    backup_s3_path: "backups/full_db_backup.sql"   ### sql파일 경로 및 이름 바뀌면 "backups/full_db_backup.sql" 리펙토링 해야합니다
     db_name: "ccmall_db"
     db_user: "ccmall_user"
     db_password: "user1"
@@ -53,9 +53,9 @@
         psql -lqt | cut -d \| -f 1 | grep -qw {{ db_name }} || \
         createdb -O {{ db_user }} {{ db_name }}
 
-    - name: 9. S3 백업 다운로드 (경로 불일치 해결)
+    - name: 9. S3 백업 다운로드 
       shell: |
-        aws s3 cp s3://{{ s3_bucket_name }}/{{ backup_s3_path }} /tmp/full_db_backup.sql
+        aws s3 cp s3://{{ s3_bucket_name }}/{{ backup_s3_path }} /tmp/full_db_backup.sql  
 
     - name: 10. 백업 파일 권한 설정
       file:
@@ -81,8 +81,9 @@
         enabled: true
 
     - name: 14. Tailscale VPN 연결
-      shell: |
-        tailscale up --authkey {{ tailscale_auth_key }} --accept-routes --accept-dns=false || true
+      shell: tailscale up --authkey {{ tailscale_auth_key }} --accept-dns=false
+      async: 60
+      poll: 0 
 
     - name: 15. 로컬 database.py IP 자동 변경 (경로 수정 완료)
       delegate_to: localhost

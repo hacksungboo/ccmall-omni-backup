@@ -1,0 +1,9 @@
+"all":
+  "hosts":
+    "ccmall-Rec":
+      "ansible_host": "10.0.2.30"
+      "ansible_ssh_common_args": "-o ProxyCommand=\"ssh -i /home/user1/project/infra/deployment/terraform/ccmall-key.pem
+        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p -q %r@3.35.141.63\"
+        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+    "ccmall-Web":
+      "ansible_host": "3.35.141.63"

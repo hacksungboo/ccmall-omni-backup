@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 DB_USER = os.getenv("DB_USER", "ccmall_user")
-DB_HOST = os.getenv("DB_HOST", "100.75.29.77")
+DB_HOST = os.getenv("DB_HOST", "10.0.2.40")
 DB_PASS = os.getenv("DB_PASS", "user1")
 DB_NAME = os.getenv("DB_NAME", "ccmall_db")
 DB_PORT = os.getenv("DB_PORT", "5432")

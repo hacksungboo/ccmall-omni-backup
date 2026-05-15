@@ -153,8 +153,8 @@ resource "terraform_data" "run_monitoring_playbook" {
     EOT
   }
 }
-
-
+###ccmall- Rec생성시 tailscale및 db설치후 테이블 생성 지금 오류있어서 변경예정
+/*
 resource "terraform_data" "run_db_setup_playbook" {
 
   depends_on = [
@@ -186,4 +186,4 @@ resource "terraform_data" "run_db_setup_playbook" {
     EOT
   }
 
-}
+}  **/
