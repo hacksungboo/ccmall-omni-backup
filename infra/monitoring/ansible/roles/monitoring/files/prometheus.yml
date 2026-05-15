@@ -22,12 +22,12 @@ scrape_configs:
 
   - job_name: 'onprem-db'
     static_configs:
-      - targets: ['10.0.2.20:9100']    # rocky01 메인 DB (VMware)
+      - targets: ['172.16.8.201:9100']  # 172.16.8.201로 수정
 
   - job_name: 'ec2-db-1'
     static_configs:
-      - targets: ['IP_미정:9100']       # 예비 DB (상시 운영)
+      - targets: ['10.0.2.30:9100']  # EC2 Rec warm standby
 
   - job_name: 'ec2-db-2'
     static_configs:
-      - targets: ['IP_미정:9100']       # 장애시 프로비저닝 서버
+      - targets: ['10.0.2.40:9100']  # 장애시 동적 생성
