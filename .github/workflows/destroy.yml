@@ -22,7 +22,7 @@ jobs:
       TF_VAR_web_allowed_cidr: ${{ secrets.TF_VAR_WEB_ALLOWED_CIDR }}
       TF_VAR_web_node_exporter_allowed_cidr: ${{ secrets.TF_VAR_WEB_NODE_EXPORTER_ALLOWED_CIDR }}
       TF_VAR_mgmt_cidr: ${{ secrets.TF_VAR_MGMT_CIDR }}
-      
+
     steps:
       - uses: actions/checkout@v4
 
@@ -35,4 +35,4 @@ jobs:
 
       - name: Terraform Destroy
         working-directory: infra/deployment/terraform
-        run: terraform destroy -input=false -auto-approve
+        run: terraform destroy -input=false -auto-approve -var-file=prod.tfvars
