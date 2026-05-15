@@ -1,0 +1,30 @@
+# infra/deployment/terraform/terraform.tfvars.example
+# 이 파일은 예시용입니다. 실제 값은 terraform.tfvars에 작성하고,
+# terraform.tfvars는 Git에 커밋하지 마세요.
+
+# --- CIDR / 네트워크 설정 ---
+# 온프레미스(또는 관리망) 대역
+onprem_cidr = "172.16.8.0/24"
+
+# VPC 및 서브넷 CIDR
+vpc_cidr            = "10.0.0.0/16"
+public_subnet_cidr  = "10.0.1.0/24"
+private_subnet_cidr = "10.0.2.0/24"
+
+# 접근 허용 대역
+# 실습 단계에서는 0.0.0.0/0으로 열고,
+# 운영에서는 본인 공인 IP/32로 제한하는 것을 권장합니다.
+ssh_allowed_cidr               = "0.0.0.0/0"
+web_allowed_cidr               = "0.0.0.0/0"
+web_node_exporter_allowed_cidr = "0.0.0.0/0"
+
+# mgmt 서버에서 DB/모니터링에 접근하는 대역
+mgmt_cidr = "172.16.8.0/24"
+
+# --- S3 설정 ---
+# 프로젝트에서 사용할 S3 버킷 prefix
+s3_bucket_prefix = "ccmall-bucket"
+
+# --- Tailscale 설정 (민감값: 예시만 남기고 실제 값은 채우지 마세요) ---
+# tailnet_name      = "your-tailnet@example.com"
+# tailscale_api_key = "tskey-api-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
