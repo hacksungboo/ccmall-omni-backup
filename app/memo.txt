@@ -1,5 +1,0 @@
-### 웹페이지 작동 확인 순서 ###
-
-1. DB생성후 ./core/create_db.txt 파일의 sql문 확인후 dbeaver 혹은 mobaxterm에서 sql문 작성
-2. ./core/database.py의 SQLALCHEMY_DATABASE_URL부분 확인할것
-3. uvicorn app.main:app --reload   작동확인 에러 뜨시면 에러코드 남겨주세요
