@@ -204,7 +204,6 @@ resource "terraform_data" "run_db_setup_playbook" {
 
 }
 
-
 # =============================================
 # Terraform → Ansible 웹 애플리케이션 자동배포
 # EC2 생성 + inventory + ansible.cfg 준비 후 실행
