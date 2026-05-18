@@ -20,7 +20,7 @@ DB_HOST = os.getenv("DB_HOST", "172.16.8.201")  # 온프레미스 DB 호스트
 BUCKET_NAME = os.getenv("BACKUP_S3_BUCKET") 
 ###   print(BUCKET_NAME)  --- 테스트용 s3 버킷 이름 출력 코드 마지막에 삭제예정
 # 복구 및 동기화 대상 (예비 DB) 정보
-REC_DB_HOST = os.getenv("REC_DB_HOST", "100.111.105.100") #프로버저닝후 tailscale ccmall-rec ip주소입력해주셔야 테스트가능
+REC_DB_HOST = os.getenv("REC_DB_HOST", "100.115.113.71") #프로버저닝후 tailscale ccmall-rec ip주소입력해주셔야 테스트가능
 REC_DB_PASS = os.getenv("REC_DB_PASS", "user1")
 
 LOCAL_BACKUP_DIR = "/tmp/db_backups"

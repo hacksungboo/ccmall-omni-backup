@@ -3,7 +3,6 @@
   become: true
 
   vars:
-    backup_s3_path: "backups/full_db_backup.sql"   ### sql파일 경로 및 이름 바뀌면 "backups/full_db_backup.sql" 리펙토링 해야합니다
     db_name: "ccmall_db"
     db_user: "ccmall_user"
     db_password: "user1"
@@ -52,9 +51,20 @@
         psql -lqt | cut -d \| -f 1 | grep -qw {{ db_name }} || \
         createdb -O {{ db_user }} {{ db_name }}
 
-    - name: 9. S3 백업 다운로드 
+    - name: 9. S3에서 최신 백업 파일 검색 및 다운로드
       shell: |
-        aws s3 cp s3://{{ s3_bucket_name }}/{{ backup_s3_path }} /tmp/full_db_backup.sql  
+        LATEST_KEY=$(aws s3 ls s3://{{ s3_bucket_name }}/backups/ --recursive \
+          | sort \
+          | tail -n 1 \
+          | awk '{print $4}')
+        if [ -z "$LATEST_KEY" ]; then
+          echo "S3에서 백업 파일을 찾을 수 없습니다." >&2
+          exit 1
+        fi
+        echo "복구 대상 파일: $LATEST_KEY"
+        aws s3 cp s3://{{ s3_bucket_name }}/$LATEST_KEY /tmp/full_db_backup.sql
+      args:
+        executable: /bin/bash
 
     - name: 10. 백업 파일 권한 설정
       file:
@@ -84,32 +94,25 @@
       async: 60
       poll: 0 
 
-    - name: 15. 로컬 database.py IP 자동 변경 (경로 수정 완료)
-      delegate_to: localhost
-      lineinfile:
-        path: "../../app/core/database.py" 
-        regexp: 'DB_HOST = os.getenv\("DB_HOST", .*\)'
-        line: 'DB_HOST = os.getenv("DB_HOST", "{{ ansible_host }}")'
-
-    - name: 16. Node Exporter 다운로드
+    - name: 15. Node Exporter 다운로드
       get_url:
         url: "https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz"
         dest: "/tmp/node_exporter.tar.gz"
 
-    - name: 17. 압축 풀기
+    - name: 16. 압축 풀기
       unarchive:
         src: "/tmp/node_exporter.tar.gz"
         dest: "/tmp"
         remote_src: yes
 
-    - name: 18. 실행 파일 이동
+    - name: 17. 실행 파일 이동
       copy:
         src: "/tmp/node_exporter-1.7.0.linux-amd64/node_exporter"
         dest: "/usr/local/bin/node_exporter"
         mode: '0755'
         remote_src: yes
 
-    - name: 19. Node Exporter 서비스 등록
+    - name: 18. Node Exporter 서비스 등록
       copy:
         dest: "/etc/systemd/system/node_exporter.service"
         content: |
@@ -123,10 +126,17 @@
           [Install]
           WantedBy=multi-user.target
 
-    - name: 20. Node Exporter 시작
+    - name: 19. Node Exporter 시작
       systemd:
         name: node_exporter
         state: started
         enabled: yes
         daemon_reload: yes
+
+    - name: 20. 로컬 database.py IP 자동 변경 (경로 수정 완료)
+      delegate_to: localhost
+      lineinfile:
+        path: "../../app/core/database.py"
+        regexp: 'DB_HOST = os.getenv\("DB_HOST", .*\)'
+        line: 'DB_HOST = os.getenv("DB_HOST", "{{ ansible_host }}")'
 

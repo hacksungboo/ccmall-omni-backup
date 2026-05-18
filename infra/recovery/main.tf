@@ -55,7 +55,7 @@ data "aws_key_pair" "ccmall_key" {
 }
 
 data "aws_iam_instance_profile" "ec2_profile" {
-  name = "EC2-S3-Instance-Profile1"
+  name = "EC2-S3-Instance-Profile"
 }
 
 data "aws_instance" "ccmall_web" {
