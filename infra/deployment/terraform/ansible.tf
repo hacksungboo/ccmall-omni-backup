@@ -59,6 +59,9 @@ resource "local_file" "ansible_cfg" {
     remote_tmp = ~/.ansible/tmp
     roles_path = ${local.deployment_roles_dir}:${local.monitoring_roles_dir}:${local.backup_roles_dir}:${local.recovery_roles_dir}
     interpreter_python = auto_silent
+
+    [ssh_connection]
+    ssh_args = -o IdentitiesOnly=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
   EOF
 }
 
@@ -79,12 +82,12 @@ resource "terraform_data" "bootstrap_user1" {
   ]
 
   triggers_replace = {
-    web_instance_id = aws_instance.ccmall_web.id
-    rec_instance_id = aws_instance.ccmall_rec.id
+    web_instance_id  = aws_instance.ccmall_web.id
+    rec_instance_id  = aws_instance.ccmall_rec.id
+    ccmall_public_key = tls_private_key.ccmall_private_key.public_key_openssh
   }
 
   provisioner "local-exec" {
-    # ansible.cfg 기준 실행 위치
     working_dir = local.infra_dir
 
     command = <<-EOT
@@ -93,9 +96,9 @@ resource "terraform_data" "bootstrap_user1" {
       echo "======================================"
       sleep 40
 
-      # ccmall-key.pem의 공개키를 ec2_bootstrap.yml이 참조하는 경로에 저장
+      # ccmall-key.pem의 공개키를 ccmall-key.pem.pub으로 저장
       # 이후 user1의 authorized_keys에 ccmall-key.pem.pub이 등록된다.
-      ssh-keygen -y -f ${local.ccmall_ssh_key_file} > ~/.ssh/ansiblekey.pem.pub
+      ssh-keygen -y -f ${local.ccmall_ssh_key_file} > ${local.ccmall_ssh_key_file}.pub
 
       echo "======================================"
       echo " Ansible Bootstrap Playbook 시작!"
@@ -117,8 +120,8 @@ resource "terraform_data" "bootstrap_user1" {
 
 # =============================================
 # Terraform → Ansible 모니터링 자동실행
-# EC2 생성 + inventory + ansible.cfg 준비 후 실행
 # bootstrap_user1 완료 후 monitoring/playbook.yml 실행
+# ansible.cfg의 remote_user = user1, private_key = ccmall-key.pem 사용
 # =============================================
 resource "terraform_data" "run_monitoring_playbook" {
 
@@ -137,7 +140,6 @@ resource "terraform_data" "run_monitoring_playbook" {
   }
 
   provisioner "local-exec" {
-    # ansible.cfg 기준 실행 위치
     working_dir = local.infra_dir
 
     command = <<-EOT
@@ -151,7 +153,9 @@ resource "terraform_data" "run_monitoring_playbook" {
       echo "======================================"
       ANSIBLE_CONFIG=${local.ansible_cfg} \
       ANSIBLE_SSH_PIPELINING=1 \
-      ansible-playbook monitoring/playbook.yml
+      ansible-playbook \
+        --private-key ${local.ccmall_ssh_key_file} \
+        monitoring/playbook.yml
 
       echo "======================================"
       echo " Monitoring Playbook 완료!"
@@ -176,6 +180,7 @@ resource "terraform_data" "run_db_setup_playbook" {
     rec_instance_id = aws_instance.ccmall_rec.id
     monitoring_id   = terraform_data.run_monitoring_playbook.id
   }
+
   provisioner "local-exec" {
     working_dir = local.infra_dir
 
@@ -188,26 +193,25 @@ resource "terraform_data" "run_db_setup_playbook" {
       echo "======================================"
       echo " Ansible DB Setup Playbook 시작!"
       echo "======================================"
-
       ANSIBLE_CONFIG=${local.ansible_cfg} \
       ANSIBLE_SSH_PIPELINING=1 \
-      ansible-playbook deployment/ansible/db_setup.yml -vvv
+      ansible-playbook \
+        --private-key ${local.ccmall_ssh_key_file} \
+        deployment/ansible/db_setup.yml -vvv
 
       echo "======================================"
       echo " DB Setup Playbook 완료!"
       echo "======================================"
     EOT
   }
-
 }
 
 # =============================================
 # Terraform → Ansible 웹 애플리케이션 자동배포
-# EC2 생성 + inventory + ansible.cfg 준비 후 실행
 # bootstrap_user1 완료 후 deployment/ansible/deploy_web.yml 실행
+# ansible.cfg의 remote_user = user1, private_key = ccmall-key.pem 사용
 # =============================================
 resource "terraform_data" "run_deploy_web_playbook" {
-
 
   depends_on = [
     aws_instance.ccmall_web,        # Web 서버 생성 완료 후
@@ -219,18 +223,14 @@ resource "terraform_data" "run_deploy_web_playbook" {
     time_sleep.wait_for_dns         # dns 전파시간 대기 후
   ]
 
-
   triggers_replace = {
     web_instance_id = aws_instance.ccmall_web.id
     rec_instance_id = aws_instance.ccmall_rec.id
     bootstrap_id    = terraform_data.bootstrap_user1.id
   }
 
-
   provisioner "local-exec" {
-    # ansible.cfg 기준 실행 위치
     working_dir = local.infra_dir
-
 
     command = <<-EOT
       echo "======================================"
@@ -238,14 +238,14 @@ resource "terraform_data" "run_deploy_web_playbook" {
       echo "======================================"
       sleep 10
 
-
       echo "======================================"
       echo " Ansible Web Deploy Playbook 시작!"
       echo "======================================"
       ANSIBLE_CONFIG=${local.ansible_cfg} \
       ANSIBLE_SSH_PIPELINING=1 \
-      ansible-playbook deployment/ansible/deploy_web.yml
-
+      ansible-playbook \
+        --private-key ${local.ccmall_ssh_key_file} \
+        deployment/ansible/deploy_web.yml
 
       echo "======================================"
       echo " Web Deploy Playbook 완료!"

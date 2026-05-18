@@ -30,7 +30,7 @@
         group: user1
         mode: "0700"
 
-    - name: "4. mgmt 서버의 ansiblekey.pem.pub를 user1 authorized_keys에 등록"
+    - name: "4. mgmt 서버의 ccmall-key.pem.pub를 user1 authorized_keys에 등록"
       authorized_key:
         user: user1
         state: present
