@@ -70,6 +70,8 @@ jobs:
       TF_VAR_web_allowed_cidr: ${{ secrets.TF_VAR_WEB_ALLOWED_CIDR }}
       TF_VAR_web_node_exporter_allowed_cidr: ${{ secrets.TF_VAR_WEB_NODE_EXPORTER_ALLOWED_CIDR }}
       TF_VAR_mgmt_cidr: ${{ secrets.TF_VAR_MGMT_CIDR }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_zone_name: ${{ secrets.TF_VAR_CLOUDFLARE_ZONE_NAME }}
 
     steps:
       - name: Checkout

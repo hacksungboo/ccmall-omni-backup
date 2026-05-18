@@ -1,0 +1,111 @@
+---
+- name: "EC2에 ccmall FastAPI + Nginx + HTTPS 배포"
+  hosts: ccmall-Web
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: "필수 패키지 설치"
+      ansible.builtin.dnf:
+        name:
+          - git
+          - python3
+          - python3-pip
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+
+    - name: "앱 디렉터리 준비"
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: "0755"
+
+    - name: "GitHub에서 프로젝트 clone 또는 update"
+      ansible.builtin.git:
+        repo: "{{ app_repo }}"
+        dest: "{{ app_dir }}"
+        version: "{{ app_branch }}"
+        force: yes
+      become: yes
+      become_user: "{{ app_user }}"
+
+    - name: "가상환경 생성"
+      ansible.builtin.command:
+        cmd: python3 -m venv {{ app_dir }}/venv
+        creates: "{{ app_dir }}/venv/bin/activate"
+
+    - name: "requirements 설치"
+      ansible.builtin.pip:
+        requirements: "{{ app_dir }}/requirements.txt"
+        virtualenv: "{{ app_dir }}/venv"
+
+    - name: "systemd 서비스 파일 배포"
+      ansible.builtin.template:
+        src: templates/ccmall.service.j2
+        dest: /etc/systemd/system/{{ app_name }}.service
+        mode: "0644"
+      notify:
+        - reload systemd
+        - restart app
+
+    - name: "nginx reverse proxy 설정 배포"
+      ansible.builtin.template:
+        src: templates/ccmall.conf.j2
+        dest: /etc/nginx/conf.d/ccmall.conf
+        mode: "0644"
+      notify:
+        - restart nginx
+
+    - name: "nginx 기본 welcome 페이지 제거"
+      ansible.builtin.file:
+        path: /usr/share/nginx/html/index.html
+        state: absent
+      ignore_errors: yes
+
+    - name: "nginx 설정 검사"
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: "FastAPI 서비스 활성화"
+      ansible.builtin.systemd:
+        name: "{{ app_name }}"
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    - name: "nginx 서비스 활성화"
+      ansible.builtin.systemd:
+        name: nginx
+        enabled: true
+        state: restarted
+
+    - name: "Let's Encrypt 인증서 발급 + HTTPS 자동 적용"
+      ansible.builtin.command: >
+        certbot --nginx
+        -d {{ ccmall_domain }}
+        --non-interactive
+        --agree-tos
+        -m {{ certbot_email }}
+        --redirect
+      args:
+        creates: "/etc/letsencrypt/live/{{ ccmall_domain }}/fullchain.pem"
+
+  handlers:
+    - name: reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: restart app
+      ansible.builtin.systemd:
+        name: "{{ app_name }}"
+        state: restarted
+
+    - name: restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted

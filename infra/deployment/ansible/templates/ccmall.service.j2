@@ -8,8 +8,16 @@ After=network.target
 User={{ app_user }}
 Group={{ app_user }}
 WorkingDirectory={{ app_dir }}
+#Environment="PYTHONUNBUFFERED=1"
+#Environment="DATABASE_URL={{ database_url }}"
+
 Environment="PYTHONUNBUFFERED=1"
-Environment="DATABASE_URL={{ database_url }}"
+Environment="DB_HOST=172.16.8.201"
+Environment="DB_PORT=5432"
+Environment="DB_NAME=ccmall_db"
+Environment="DB_USER=ccmall_user"
+Environment="DB_PASS=user1"
+
 ExecStart={{ app_dir }}/venv/bin/uvicorn {{ app_module }} --host 127.0.0.1 --port {{ app_port }} --proxy-headers
 Restart=always
 RestartSec=3

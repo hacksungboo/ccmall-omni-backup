@@ -89,3 +89,16 @@ variable "rec_root_volume_size" {
   description = "Rec root volume size in GiB"
   type        = number
 }
+
+# cloudflare 변수 추가
+variable "cloudflare_api_token" {
+  description = "Cloudflare API Token for DNS management"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_name" {
+  description = "Cloudflare zone name"
+  type        = string
+  default     = "ccmall.shop"
+}

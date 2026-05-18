@@ -34,7 +34,7 @@
       authorized_key:
         user: user1
         state: present
-        key: "{{ lookup('file', '/home/user1/.ssh/ansiblekey.pem.pub') }}"
+        key: "{{ lookup('file', bootstrap_public_key_file) }}"
         manage_dir: yes
 
     - name: "5. authorized_keys 권한 보정"

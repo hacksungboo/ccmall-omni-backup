@@ -27,7 +27,8 @@ locals {
 
   # Terraform이 생성하는 초기 접속용 key
   ccmall_ssh_key_file = "${local.terraform_dir}/ccmall-key.pem"
-
+  ccmall_ssh_public_key_file = "${local.terraform_dir}/ccmall-key.pem.pub"
+  
   # 부트스트랩 이후 운영 접속용 key
   ansible_key_file = "/home/user1/.ssh/ansiblekey.pem"
 

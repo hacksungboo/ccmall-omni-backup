@@ -54,7 +54,7 @@ resource "local_file" "ansible_cfg" {
     [defaults]
     inventory = ${local.inventory_file}
     remote_user = user1
-    private_key_file = ${local.ansible_key_file}
+    private_key_file = ${local.ccmall_ssh_key_file}
     host_key_checking = False
     remote_tmp = ~/.ansible/tmp
     roles_path = ${local.deployment_roles_dir}:${local.monitoring_roles_dir}:${local.backup_roles_dir}:${local.recovery_roles_dir}
@@ -74,7 +74,8 @@ resource "terraform_data" "bootstrap_user1" {
     aws_instance.ccmall_rec,      # Rec 서버 생성 완료 후
     local_file.ccmall_ssh_key,    # SSH Private Key 생성 완료 후
     local_file.ansible_inventory, # inventory.yml 생성 완료 후
-    local_file.ansible_cfg        # ansible.cfg 생성 완료 후
+    local_file.ansible_cfg,       # ansible.cfg 생성 완료 후
+    local_file.ccmall_ssh_key_pub # public key 생성 완료 후
   ]
 
   triggers_replace = {
@@ -100,6 +101,7 @@ resource "terraform_data" "bootstrap_user1" {
       ansible-playbook \
         -u ec2-user \
         --private-key ${local.ccmall_ssh_key_file} \
+        -e "bootstrap_public_key_file=${local.ccmall_ssh_key_file}.pub" \
         ${local.bootstrap_playbook}
 
       echo "======================================"
@@ -196,6 +198,61 @@ resource "terraform_data" "run_db_setup_playbook" {
 
       echo "======================================"
       echo " DB Setup Playbook 완료!"
+      echo "======================================"
+    EOT
+  }
+
+}  **/
+
+
+# =============================================
+# Terraform → Ansible 웹 애플리케이션 자동배포
+# EC2 생성 + inventory + ansible.cfg 준비 후 실행
+# bootstrap_user1 완료 후 deployment/ansible/deploy_web.yml 실행
+# =============================================
+resource "terraform_data" "run_deploy_web_playbook" {
+
+
+  depends_on = [
+    aws_instance.ccmall_web,        # Web 서버 생성 완료 후
+    aws_instance.ccmall_rec,        # Rec 서버 생성 완료 후
+    local_file.ansible_inventory,   # inventory.yml 생성 완료 후
+    local_file.ansible_cfg,         # ansible.cfg 생성 완료 후
+    terraform_data.bootstrap_user1, # bootstrap 완료 후
+    cloudflare_record.ccmall_root,  # cloudflare dns 생성 후
+    time_sleep.wait_for_dns         # dns 전파시간 대기 후
+  ]
+
+
+  triggers_replace = {
+    web_instance_id = aws_instance.ccmall_web.id
+    rec_instance_id = aws_instance.ccmall_rec.id
+    bootstrap_id    = terraform_data.bootstrap_user1.id
+  }
+
+
+  provisioner "local-exec" {
+    # ansible.cfg 기준 실행 위치
+    working_dir = local.infra_dir
+
+
+    command = <<-EOT
+      echo "======================================"
+      echo " EC2 SSH 준비 대기 중... (10초)"
+      echo "======================================"
+      sleep 10
+
+
+      echo "======================================"
+      echo " Ansible Web Deploy Playbook 시작!"
+      echo "======================================"
+      ANSIBLE_CONFIG=${local.ansible_cfg} \
+      ANSIBLE_SSH_PIPELINING=1 \
+      ansible-playbook deployment/ansible/deploy_web.yml
+
+
+      echo "======================================"
+      echo " Web Deploy Playbook 완료!"
       echo "======================================"
     EOT
   }

@@ -32,6 +32,12 @@ resource "local_file" "ccmall_ssh_key" {
   file_permission = "0600"
 }
 
+# bootstrap에서 주입하게 될 공개키
+resource "local_file" "ccmall_ssh_key_pub" {
+  filename = local.ccmall_ssh_public_key_file
+  content  = tls_private_key.ccmall_private_key.public_key_openssh
+}
+
 # 생성된 ccmall-Web의 public ip를 출력
 output "web_public_ip" {
   description = "ccmall-Web의 public ipv4 주소"
