@@ -12,13 +12,13 @@ db_svc: "{{ 'postgresql' if ansible_distribution == 'Amazon' else 'postgresql-15
 db_dir: "{{ '/var/lib/pgsql/data' if ansible_distribution == 'Amazon' else '/var/lib/pgsql/15/data' }}"
 db_port: "5432"
 
-db_name: "test"
+db_name: "ccmall_db"
 db_user: "ccmall_user"
-db_pw: "1234"
+db_pw: "user1"
 
 client_cidr: "0.0.0.0/0"
 
-# Tailscale 관련
+## Tailscale 관련
 tailscale_auth_key: "{{ lookup('env', 'TAILSCALE_AUTH') }}"
 tailscale_api_key: "{{ lookup('env', 'TAILSCALE_TOKEN') }}"
 tailnet_name: "zeoxixx@gmail.com"
@@ -28,7 +28,7 @@ local_cidr: "192.168.64.0/24"
 
 
 
-# Cloudflare Tunnel Token
+## Cloudflare Tunnel Token
 cloudflared_token: "여기에_Cloudflare_Tunnel_Token"
 database_url: "postgresql://ccmall_user:user1@172.16.8.201:5432/ccmall_db"
 

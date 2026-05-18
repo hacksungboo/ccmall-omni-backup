@@ -1,6 +1,7 @@
 # infra/deployment/terraform/provider.tf
 # AWS에 Web, Rec 서버를 provisioning한다.
 
+# 2026.05.14 17:11 CI/CD 테스트용 주석 추가
 # 2026.05.18 12:31 CI/CD 테스트용 주석 수정
 
 terraform {

@@ -156,31 +156,45 @@ resource "terraform_data" "run_monitoring_playbook" {
   }
 }
 ###ccmall- Rec생성시 tailscale및 db설치후 테이블 생성 지금 오류있어서 변경예정
-/*
 resource "terraform_data" "run_db_setup_playbook" {
-
   depends_on = [
+    aws_instance.ccmall_web,
     aws_instance.ccmall_rec,
     local_file.ansible_inventory,
-    terraform_data.bootstrap_user1 # 부트스트랩(user1 생성 등)이 무조건 먼저 끝나야 함
+    local_file.ansible_cfg,
+    terraform_data.run_monitoring_playbook 
   ]
 
   triggers_replace = {
+    web_instance_id = aws_instance.ccmall_web.id
     rec_instance_id = aws_instance.ccmall_rec.id
-    bootstrap_id    = terraform_data.bootstrap_user1.id
+    monitoring_id   = terraform_data.run_monitoring_playbook.id
   }
-
   provisioner "local-exec" {
     working_dir = local.infra_dir
 
     command = <<-EOT
       echo "======================================"
+      echo " user1 SSH 연결 대기 중..."
+      echo "======================================"
+
+      until ssh -i ${local.ansible_key_file} \
+        -o StrictHostKeyChecking=no \
+        -o UserKnownHostsFile=/dev/null \
+        user1@${aws_instance.ccmall_web.public_ip} \
+        "echo connected" >/dev/null 2>&1
+      do
+        echo "SSH 아직 안됨... 5초 후 재시도"
+        sleep 5
+      done
+
+      echo "======================================"
       echo " Ansible DB Setup Playbook 시작!"
       echo "======================================"
-      
+
       ANSIBLE_CONFIG=${local.ansible_cfg} \
       ANSIBLE_SSH_PIPELINING=1 \
-      ansible-playbook deployment/ansible/db_setup.yml
+      ansible-playbook deployment/ansible/db_setup.yml -vvv
 
       echo "======================================"
       echo " DB Setup Playbook 완료!"

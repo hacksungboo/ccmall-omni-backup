@@ -1,69 +1,64 @@
 ---
-- name: "PostgreSQL 설치 및 DB, 테이블 자동 셋업"
+- name: "PostgreSQL 15 설치 및 초기 스키마 구성"
   hosts: ccmall-Rec
   become: yes
-  gather_facts: no
+  gather_facts: no # 접속 전이므로 일단 꺼둡니다.
+  
   pre_tasks:
     - name: "SSH 연결 대기"
       wait_for_connection:
         delay: 5
         timeout: 300
+
     - name: "Facts 재수집"
-      setup:
+      setup: # 여기서 따로 실행해야 에러가 안 납니다.
+
   tasks:
-    - name: "1. PostgreSQL 15 서버 설치"
+    - name: "1. PostgreSQL 15 패키지 설치"
       dnf:
-        name: 
-          - postgresql15-server
-          - postgresql15
+        name: [postgresql15-server, postgresql15]
         state: present
 
-    - name: "2. PostgreSQL DB 초기화"
+    - name: "2. DB 초기화"
       shell: postgresql-setup --initdb
       args:
         creates: /var/lib/pgsql/data/postgresql.conf
 
-    - name: "3. 외부 접속 허용 설정 (postgresql.conf)"
+    - name: "3. 외부 접속 및 인증 설정"
       lineinfile:
         path: /var/lib/pgsql/data/postgresql.conf
-        regexp: "^#?\\s*listen_addresses"
+        regexp: "^#?listen_addresses"
         line: "listen_addresses = '*'"
 
-    - name: "4. 외부 접속 권한 설정 (pg_hba.conf)"
-      lineinfile:
+    - name: "4. 접근 권한 허용 (pg_hba.conf)"
+      blockinfile:
         path: /var/lib/pgsql/data/pg_hba.conf
-        line: "host    all             all             0.0.0.0/0               md5"
         insertafter: EOF
+        block: |
+          host    all             all             0.0.0.0/0               md5
 
-    - name: "5. PostgreSQL 서비스 재시작 및 활성화"
+    - name: "5. 서비스 재시작"
       systemd:
         name: postgresql
         state: restarted
         enabled: yes
 
-    - name: "6. ccmall_db 데이터베이스 생성"
+    - name: "6. DB 및 유저 생성"
       become_user: postgres
       shell: |
-        psql -tc "SELECT 1 FROM pg_database WHERE datname='ccmall_db'" | grep -q 1 || \
-        psql -c "CREATE DATABASE ccmall_db;"
+        psql -tc "SELECT 1 FROM pg_database WHERE datname='ccmall_db'" | grep -q 1 || psql -c "CREATE DATABASE ccmall_db;"
+        psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ccmall_user'" | grep -q 1 || psql -c "CREATE USER ccmall_user WITH PASSWORD 'user1' SUPERUSER;"
 
-    - name: "7. ccmall_user 생성"
+    - name: "7. 스키마 생성"
       become_user: postgres
       shell: |
-        psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ccmall_user'" | grep -q 1 || \
-        psql -c "CREATE USER ccmall_user WITH PASSWORD 'user1' SUPERUSER;"
-
-    - name: "8. 테이블 생성용 SQL 복사"
-      copy:
-        dest: "/tmp/init_tables.sql"
-        content: |
-          CREATE TABLE IF NOT EXISTS customers (id VARCHAR(20) PRIMARY KEY, password VARCHAR(255), name VARCHAR(20), birth_date DATE, address TEXT, email VARCHAR(30) UNIQUE, phone_number VARCHAR(20));
-          CREATE TABLE IF NOT EXISTS inventorys (item_id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, quantity INTEGER DEFAULT 0);
-          CREATE TABLE IF NOT EXISTS orders (order_id SERIAL PRIMARY KEY, item_id INTEGER REFERENCES inventorys(item_id), customer_id VARCHAR(50) REFERENCES customers(id), order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, order_quantity INTEGER DEFAULT 1);
-          CREATE TABLE IF NOT EXISTS admins (id SERIAL PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL);
-          GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
-          GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
-
-    - name: "9. ccmall_db에 스키마 적용"
-      become_user: postgres
-      shell: psql -d ccmall_db -f /tmp/init_tables.sql
+        psql -d ccmall_db -c "
+        CREATE TABLE IF NOT EXISTS customers (id VARCHAR(50) PRIMARY KEY, password VARCHAR(255), name VARCHAR(50), birth_date DATE, address TEXT, email VARCHAR(100) UNIQUE, phone_number VARCHAR(20));
+        CREATE TABLE IF NOT EXISTS inventorys (item_id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, quantity INTEGER DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS orders (order_id SERIAL PRIMARY KEY, item_id INTEGER REFERENCES inventorys(item_id), customer_id VARCHAR(50) REFERENCES customers(id), order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, order_quantity INTEGER DEFAULT 1);
+        CREATE TABLE IF NOT EXISTS admins (id SERIAL PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL);
+        GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
+        GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
+        "
+      args:
+        executable: /bin/bash
