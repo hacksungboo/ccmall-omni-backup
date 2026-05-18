@@ -49,14 +49,16 @@
         psql -tc "SELECT 1 FROM pg_database WHERE datname='ccmall_db'" | grep -q 1 || psql -c "CREATE DATABASE ccmall_db;"
         psql -tc "SELECT 1 FROM pg_roles WHERE rolname='ccmall_user'" | grep -q 1 || psql -c "CREATE USER ccmall_user WITH PASSWORD 'user1' SUPERUSER;"
 
-    - name: "7. 무결성을 고려한 테이블 스키마 생성"
+    - name: "7. 스키마 생성"
       become_user: postgres
       shell: |
         psql -d ccmall_db -c "
-        CREATE TABLE IF NOT EXISTS customers (id VARCHAR(20) PRIMARY KEY, password VARCHAR(255), name VARCHAR(20), birth_date DATE, address TEXT, email VARCHAR(30) UNIQUE, phone_number VARCHAR(20));
+        CREATE TABLE IF NOT EXISTS customers (id VARCHAR(50) PRIMARY KEY, password VARCHAR(255), name VARCHAR(50), birth_date DATE, address TEXT, email VARCHAR(100) UNIQUE, phone_number VARCHAR(20));
         CREATE TABLE IF NOT EXISTS inventorys (item_id SERIAL PRIMARY KEY, item_name VARCHAR(255) NOT NULL, quantity INTEGER DEFAULT 0);
         CREATE TABLE IF NOT EXISTS orders (order_id SERIAL PRIMARY KEY, item_id INTEGER REFERENCES inventorys(item_id), customer_id VARCHAR(50) REFERENCES customers(id), order_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP, order_quantity INTEGER DEFAULT 1);
         CREATE TABLE IF NOT EXISTS admins (id SERIAL PRIMARY KEY, username VARCHAR(50) NOT NULL UNIQUE, password VARCHAR(255) NOT NULL);
         GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
         GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
         "
+      args:
+        executable: /bin/bash
