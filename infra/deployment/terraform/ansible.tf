@@ -202,7 +202,7 @@ resource "terraform_data" "run_db_setup_playbook" {
     EOT
   }
 
-}  **/
+}
 
 
 # =============================================
