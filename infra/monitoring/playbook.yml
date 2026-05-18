@@ -1,6 +1,6 @@
 ---
 - name: 모니터링 설치 (Prometheus + Grafana + Alertmanager)
-  hosts: localhost
+  hosts: EC2-Rec
   become: yes
   roles:
     - monitoring
@@ -9,12 +9,22 @@
   hosts: all
   become: yes
   tasks:
-    - name: 필수 패키지 설치
+    - name: 필수 패키지 설치 (Rocky/Amazon Linux)
       dnf:
         name:
           - tar
           - gzip
         state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: 필수 패키지 설치 (Ubuntu)
+      apt:
+        name:
+          - tar
+          - gzip
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
 
     - name: Node Exporter 다운로드
       get_url:
