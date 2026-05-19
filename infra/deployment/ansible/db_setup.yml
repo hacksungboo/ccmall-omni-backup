@@ -69,11 +69,12 @@
       until: tailscale_ip.rc == 0 and tailscale_ip.stdout | trim | length > 0
       changed_when: false
 
-    - name: "9. REC_DB_HOST 환경변수를 mgmt 서버 .bashrc에 등록"
-      lineinfile:
-        path: /home/user1/.bashrc
-        regexp: "^export REC_DB_HOST="
-        line: "export REC_DB_HOST={{ tailscale_ip.stdout | trim }}"
+    - name: "9. REC_DB_HOST를 GitHub Secrets에 등록"
+      shell: |
+        gh secret set REC_DB_HOST --body "{{ tailscale_ip.stdout | trim }}" --repo "{{ lookup('env', 'GITHUB_REPOSITORY') }}"
       delegate_to: localhost
       become: false
-      become_user: "{{ lookup('env', 'USER') }}"
+      environment:
+        GH_TOKEN: "{{ lookup('env', 'GH_TOKEN') }}"
+
+

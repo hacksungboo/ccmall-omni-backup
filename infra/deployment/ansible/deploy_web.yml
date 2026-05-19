@@ -108,17 +108,17 @@
         name: nginx
         enabled: true
         state: restarted
-
-    - name: "Let's Encrypt 인증서 발급 + HTTPS 자동 적용"
-      ansible.builtin.command: >
-        certbot --nginx
-        -d {{ ccmall_domain }}
-        --non-interactive
-        --agree-tos
-        -m {{ certbot_email }}
-        --redirect
-      args:
-        creates: "/etc/letsencrypt/live/{{ ccmall_domain }}/fullchain.pem"
+    # 인증서 발급 횟수 제한으로 임시 주석처리 (05.19 17:16)
+    # - name: "Let's Encrypt 인증서 발급 + HTTPS 자동 적용"
+    #   ansible.builtin.command: >
+    #     certbot --nginx
+    #     -d {{ ccmall_domain }}
+    #     --non-interactive
+    #     --agree-tos
+    #     -m {{ certbot_email }}
+    #     --redirect
+    #   args:
+    #     creates: "/etc/letsencrypt/live/{{ ccmall_domain }}/fullchain.pem"
 
   handlers:
     - name: reload systemd

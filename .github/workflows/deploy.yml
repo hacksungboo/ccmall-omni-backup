@@ -15,6 +15,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  secrets: write
 
 jobs:
   plan:
@@ -72,7 +73,8 @@ jobs:
       TF_VAR_mgmt_cidr: ${{ secrets.TF_VAR_MGMT_CIDR }}
       TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_name: ${{ secrets.TF_VAR_CLOUDFLARE_ZONE_NAME }}
-
+      GH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+      
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,7 +86,15 @@ jobs:
         working-directory: infra/deployment/terraform
         run: |
           terraform init
-          terraform apply --auto-approve -var-file=dev.tfvars     
+          terraform apply --auto-approve -var-file=dev.tfvars
+
+      - name: S3 버킷 이름 Secret 등록
+        working-directory: infra/deployment/terraform
+        env:
+          GH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
+        run: |
+          BUCKET=$(terraform output -raw s3_bucket_name)
+          gh secret set BACKUP_S3_BUCKET --body "$BUCKET" --repo ${{ github.repository }}
 
       # ===== Ansible 관련 step은 일단 주석 처리 =====
       # Terraform 동작 검증 후 하나씩 활성화 예정

@@ -166,7 +166,10 @@ resource "terraform_data" "run_monitoring_playbook" {
   }
 }
 
-###ccmall- Rec생성시 tailscale및 db설치후 테이블 생성
+
+# =============================================
+# ccmall- Rec생성시 tailscale및 db설치후 테이블 생성
+# =============================================
 resource "terraform_data" "run_db_setup_playbook" {
   depends_on = [
     aws_instance.ccmall_web,
