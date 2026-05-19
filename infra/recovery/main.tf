@@ -161,6 +161,7 @@ resource "terraform_data" "run_ansible" {
   ]
   provisioner "local-exec" {
     command = <<-EOT
+      source /home/user1/.bashrc
       export ANSIBLE_CONFIG=./ansible.cfg
       ANSIBLE_SSH_PIPELINING=1 ansible-playbook site.yml \
       -e "s3_bucket_name=$BACKUP_S3_BUCKET" \
