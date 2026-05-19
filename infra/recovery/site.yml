@@ -3,10 +3,10 @@
   become: true
 
   vars:
-    db_name: "ccmall_db"
-    db_user: "ccmall_user"
-    db_password: "user1"
-    rec_db_host: "10.0.2.30"
+    db_name: "{{ lookup('env', 'DB_NAME') }}"
+    db_user: "{{ lookup('env', 'DB_USER') }}"
+    db_password: "{{ lookup('env', 'DB_PASS') }}"
+    rec_db_host: "{{ lookup('env', 'REC_DB_HOST_PRIVATE') }}"
 
   tasks:
     - name: 1. PostgreSQL 설치

@@ -4,12 +4,12 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 
-
-DB_USER = os.getenv("DB_USER", "ccmall_user")
-DB_HOST = os.getenv("DB_HOST", "172.16.8.201")
-DB_PASS = os.getenv("DB_PASS", "user1")
-DB_NAME = os.getenv("DB_NAME", "ccmall_db")
-DB_PORT = os.getenv("DB_PORT", "5432")
+ # ./bashrc에 환경변수로 저장하셔야합니다
+DB_USER = os.getenv("DB_USER") 
+DB_HOST = os.getenv("DB_HOST") #동적으로 변경
+DB_PASS = os.getenv("DB_PASS")
+DB_NAME = os.getenv("DB_NAME")
+DB_PORT = os.getenv("DB_PORT")
 
 SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 

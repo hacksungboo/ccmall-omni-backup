@@ -52,7 +52,7 @@ CREATE TABLE admins (
     password VARCHAR(255) NOT NULL
 );
 
--- 로그인 테스트를 위한 계정 추가
+-- 로그인 테스트를 위한 계정 추가----
 
 INSERT INTO admins (username, password) VALUES ('admin', 'password');
 
