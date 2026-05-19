@@ -44,6 +44,31 @@
         requirements: "{{ app_dir }}/requirements.txt"
         virtualenv: "{{ app_dir }}/venv"
 
+    - name: "ccmall 환경변수 디렉토리 생성"
+      ansible.builtin.file:
+        path: /etc/ccmall
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: "ccmall 환경변수 파일 배포"
+      ansible.builtin.copy:
+        dest: /etc/ccmall/ccmall.env
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          PYTHONUNBUFFERED=1
+          DB_HOST={{ db_host }}
+          DB_PORT={{ db_port }}
+          DB_NAME={{ db_name }}
+          DB_USER={{ db_user }}
+          DB_PASS={{ db_pw }}
+      notify:
+        - restart app
+
+
     - name: "systemd 서비스 파일 배포"
       ansible.builtin.template:
         src: templates/ccmall.service.j2

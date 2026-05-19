@@ -32,7 +32,10 @@ resource "local_file" "ansible_inventory" {
         "ccmall-Web" = {
           ansible_host = aws_instance.ccmall_web.public_ip
         }
-
+        "mgmt" = {
+          ansible_host       = "localhost"
+          ansible_connection = "local"
+        }
         # ccmall-Rec은 private subnet에 있으므로 ccmall-Web을 통해 점프 접속한다.
         "ccmall-Rec" = {
           ansible_host = aws_instance.ccmall_rec.private_ip
