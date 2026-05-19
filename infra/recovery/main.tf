@@ -78,8 +78,18 @@ data "aws_ami" "latest_al2023" {
   }
 }
 
+
+resource "aws_key_pair" "ansiblekey2" {
+  key_name   = "ansiblekey2"
+  public_key = file(pathexpand("~/.ssh/ansiblekey2.pem.pub"))
+}
+
+
 ## 3. 리커버리 EC2 생성
 resource "aws_instance" "ccmall-Recovery-ec2" {
+  # 먼저 수행되도록 보장
+  depends_on = [terraform_data.switch_web_db_host, aws_key_pair.ansiblekey2]
+
   ami                         = data.aws_ami.latest_al2023.id
   instance_type               = "t3.micro"
   subnet_id                   = data.aws_subnet.private_subnet.id
@@ -90,7 +100,7 @@ resource "aws_instance" "ccmall-Recovery-ec2" {
     data.aws_security_group.sg_rec.id
   ]
 
-  key_name             = data.aws_key_pair.ccmall_key.key_name
+  key_name             = aws_key_pair.ansiblekey2.key_name
   iam_instance_profile = data.aws_iam_instance_profile.ec2_profile.name
 
   root_block_device {
@@ -119,8 +129,8 @@ resource "local_file" "inventory" {
         "ccmall-Recovery-ec2" = {
           ansible_host                 = aws_instance.ccmall-Recovery-ec2.private_ip
           ansible_user                 = "ec2-user"
-          ansible_ssh_private_key_file = "../deployment/terraform/ccmall-key.pem"
-          ansible_ssh_common_args      = "-o ProxyCommand=\"ssh -i ../deployment/terraform/ccmall-key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ec2-user@${data.aws_instance.ccmall_web.public_ip}\""
+          ansible_ssh_private_key_file = "/home/user1/.ssh/ansiblekey2.pem"
+          ansible_ssh_common_args      = "-o ProxyCommand=\"ssh -i /home/user1/.ssh/ansiblekey2.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p user1@${data.aws_instance.ccmall_web.public_ip}\""
         }
       }
     }
@@ -135,7 +145,7 @@ resource "local_file" "ansible_cfg" {
     "inventory = ./inventory.yml",
     "host_key_checking = False",
     "remote_user = ec2-user",
-    "private_key_file = ../deployment/terraform/ccmall-key.pem",
+    "private_key_file = /home/user1/.ssh/ansiblekey2.pem",
     "interpreter_python = auto_silent",
     ""
   ])
@@ -149,7 +159,7 @@ resource "terraform_data" "wait_for_ec2" {
     local_file.ansible_cfg
   ]
   provisioner "local-exec" {
-    command = "sleep 40"
+    command = "sleep 90"
   }
 }
 
@@ -160,6 +170,7 @@ resource "terraform_data" "run_ansible" {
     local_file.inventory
   ]
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
       source /home/user1/.bashrc
       export ANSIBLE_CONFIG=./ansible.cfg
@@ -171,15 +182,19 @@ resource "terraform_data" "run_ansible" {
   }
 }
 
+# 즉시 ccmall-Web의 db 주소를 ccmall-Rec으로 변환
 ## 8. 프로비저닝시 즉시 ccmall_web의 /etc/ccmall/ccmall.env 파일 수정
 resource "terraform_data" "switch_web_db_host" {
+  depends_on = [data.aws_instance.ccmall_web]
+
   provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
     command = <<-EOT
-      ssh -i ../deployment/terraform/ccmall-key.pem \
+      ssh -i /home/user1/.ssh/ansiblekey2.pem \
           -o StrictHostKeyChecking=no \
           -o UserKnownHostsFile=/dev/null \
-          ec2-user@${data.aws_instance.ccmall_web.public_ip} \
-          "sudo sed -i 's/^DB_HOST=.*/DB_HOST=10.0.2.30/' /etc/ccmall/ccmall.env && sudo systemctl restart nginx"
+          user1@${data.aws_instance.ccmall_web.public_ip} \
+          "sudo sed -i 's/^DB_HOST=.*/DB_HOST=10.0.2.30/' /etc/ccmall/ccmall.env && sudo systemctl restart ccmall && sudo systemctl restart nginx"
     EOT
   }
 }
@@ -187,4 +202,32 @@ resource "terraform_data" "switch_web_db_host" {
 output "ccmall-Recovery-ec2_private_ip" {
   description = "Recovery DB private ip"
   value       = aws_instance.ccmall-Recovery-ec2.private_ip
+}
+
+
+# 다시 로컬 db로 복귀 (terraform destroy 시)
+resource "terraform_data" "restore_web_db_host_on_destroy" {
+  depends_on = [aws_instance.ccmall-Recovery-ec2]
+
+  input = {
+    web_public_ip = data.aws_instance.ccmall_web.public_ip
+    web_user      = "user1"
+    ssh_key_path  = "/home/user1/.ssh/ansiblekey2.pem"
+    restore_host  = "172.16.8.201"
+  }
+
+  provisioner "local-exec" {
+    when        = destroy
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      ssh -i ${self.input.ssh_key_path} \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          ${self.input.web_user}@${self.input.web_public_ip} \
+          "echo '[BEFORE]'; grep '^DB_HOST=' /etc/ccmall/ccmall.env; \
+           sudo sed -i 's/^DB_HOST=.*/DB_HOST=${self.input.restore_host}/' /etc/ccmall/ccmall.env; \
+           echo '[AFTER]'; grep '^DB_HOST=' /etc/ccmall/ccmall.env; \
+           sudo systemctl restart ccmall && sudo systemctl restart nginx"
+    EOT
+  }
 }

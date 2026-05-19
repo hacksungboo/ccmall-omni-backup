@@ -19,7 +19,7 @@ DB_PASS = os.getenv("DB_PASS")
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
-REC_DB_HOST = os.getenv("REC_DB_HOST")  
+REC_DB_HOST = os.getenv("REC_DB_HOST")
 REC_DB_PORT = os.getenv("REC_DB_PORT", DB_PORT)
 REC_DB_PASS = os.getenv("REC_DB_PASS", DB_PASS)
 
@@ -230,6 +230,57 @@ def sync_recent_orders_to_rec():
         rec_conn.close()
 
 
+def sync_admins_to_rec():
+    onprem_conn = get_conn(DB_HOST, DB_PASS, DB_PORT)
+    rec_conn = get_conn(REC_DB_HOST, REC_DB_PASS, REC_DB_PORT)
+
+    try:
+        with onprem_conn.cursor() as cur:
+            cur.execute("""
+                SELECT id, username, password
+                FROM admins
+                ORDER BY id;
+            """)
+            rows = cur.fetchall()
+
+        with rec_conn.cursor() as cur:
+            if rows:
+                execute_values(
+                    cur,
+                    """
+                    INSERT INTO admins (id, username, password)
+                    VALUES %s
+                    ON CONFLICT (id)
+                    DO UPDATE SET
+                        username = EXCLUDED.username,
+                        password = EXCLUDED.password;
+                    """,
+                    rows
+                )
+
+            cur.execute("""
+                GRANT USAGE ON SCHEMA public TO ccmall_user;
+                GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ccmall_user;
+                GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ccmall_user;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                GRANT ALL PRIVILEGES ON TABLES TO ccmall_user;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public
+                GRANT ALL PRIVILEGES ON SEQUENCES TO ccmall_user;
+            """)
+
+        rec_conn.commit()
+        print(f"[REC 동기화 완료] admins {len(rows)}건 upsert + 권한 보정")
+
+    except Exception:
+        rec_conn.rollback()
+        raise
+    finally:
+        onprem_conn.close()
+        rec_conn.close()
+
+
+
+
 # =========================
 # 5. 무결성 검증
 # =========================
@@ -251,6 +302,8 @@ def verify_rec_sync():
                 WHERE order_time >= NOW() - INTERVAL '3 days';
             """)
             onprem_orders = cur.fetchone()
+            cur.execute("SELECT COUNT(*) FROM admins;")
+            onprem_admins = cur.fetchone()
 
         with rec_conn.cursor() as cur:
             cur.execute("""
@@ -265,14 +318,21 @@ def verify_rec_sync():
             """)
             rec_orders = cur.fetchone()
 
+            cur.execute("SELECT COUNT(*) FROM admins;")
+            rec_admins = cur.fetchone()
+
         print(f"[검증] inventorys onprem={onprem_inventory}, rec={rec_inventory}")
         print(f"[검증] orders     onprem={onprem_orders}, rec={rec_orders}")
-
+        print(f"[검증] admins onprem={onprem_admins}, rec={rec_admins}")
+        
         if onprem_inventory != rec_inventory:
             raise RuntimeError("inventorys 무결성 검증 실패")
 
         if onprem_orders != rec_orders:
             raise RuntimeError("orders 무결성 검증 실패")
+
+        if onprem_admins != rec_admins:
+            raise RuntimeError("admins 무결성 검증 실패")
 
         print("[검증 완료] REC 동기화 무결성 정상")
 
@@ -294,6 +354,7 @@ def run_daily_backup_job():
         sync_inventorys_to_rec()
         sync_recent_customers_to_rec()
         sync_recent_orders_to_rec()
+        sync_admins_to_rec()
         verify_rec_sync()
 
         print(f"[{datetime.datetime.now()}] 일일 백업 작업 성공\n")
