@@ -93,6 +93,10 @@ resource "terraform_data" "bootstrap_user1" {
   provisioner "local-exec" {
     working_dir = local.infra_dir
 
+    environment = {
+      ANSIBLE_PUBLIC_KEY = var.ansible_public_key
+    }
+
     command = <<-EOT
       echo "======================================"
       echo " EC2 SSH 준비 대기 중... (40초)"
@@ -112,7 +116,7 @@ resource "terraform_data" "bootstrap_user1" {
         -u ec2-user \
         --private-key ${local.ccmall_ssh_key_file} \
         -e "bootstrap_public_key_file=${local.ccmall_ssh_key_file}.pub" \
-        -e "ansible_public_key=$ANSIBLE_PUBLIC_KEY" \
+        -e ansible_public_key="$ANSIBLE_PUBLIC_KEY" \
         ${local.bootstrap_playbook}
 
       echo "======================================"
@@ -222,6 +226,7 @@ resource "terraform_data" "run_deploy_web_playbook" {
     local_file.ansible_inventory,   # inventory.yml 생성 완료 후
     local_file.ansible_cfg,         # ansible.cfg 생성 완료 후
     terraform_data.bootstrap_user1,
+    terraform_data.run_monitoring_playbook,
     cloudflare_record.ccmall_root,  # cloudflare dns 생성 후
     time_sleep.wait_for_dns         # dns 전파시간 대기 후
   ]

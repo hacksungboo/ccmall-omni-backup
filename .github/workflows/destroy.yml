@@ -25,7 +25,7 @@ jobs:
       TF_VAR_cloudflare_api_token: ${{ secrets.TF_VAR_CLOUDFLARE_API_TOKEN }}
       TF_VAR_cloudflare_zone_name: ${{ secrets.TF_VAR_CLOUDFLARE_ZONE_NAME }}
       GH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
-      ANSIBLE_PUBLIC_KEY: ${{ secrets.ANSIBLE_PUBKEY }}
+      TF_VAR_ansible_public_key: ${{ secrets.ANSIBLE_PUBKEY }}
     steps:
       - uses: actions/checkout@v4
 
