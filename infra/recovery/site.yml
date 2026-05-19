@@ -189,11 +189,13 @@
       args:
         executable: /bin/bash
 
-    - name: 21. DB_HOST 환경변수를 mgmt 서버 .bashrc에 등록
+    - name: 21. ccmall-Web DB_HOST를 Recovery EC2(10.0.2.40)로 전환
       delegate_to: localhost
       become: false
-      lineinfile:
-        path: /home/user1/.bashrc
-        regexp: "^export DB_HOST="
-        line: "export DB_HOST={{ ansible_host }}"
+      shell: |
+        ssh -i ../deployment/terraform/ccmall-key.pem \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            ec2-user@{{ web_host }} \
+            "sudo sed -i 's/^DB_HOST=.*/DB_HOST=10.0.2.40/' /etc/ccmall/ccmall.env && sudo systemctl restart nginx"
 

@@ -1,4 +1,5 @@
-﻿from fastapi import FastAPI, Form, Depends, Response, Request
+﻿import os
+from fastapi import FastAPI, Form, Depends, Response, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -31,9 +32,10 @@ async def read_index(request: Request, error: str = None): # error 파라미터 
     error_msg = "아이디 또는 비밀번호가 틀렸습니다." if error == "login_fail" else None
     
     return templates.TemplateResponse("index.html", {
-        "request": request, 
+        "request": request,
         "is_login": is_login,
-        "error_msg": error_msg  # HTML로 에러 메시지 전달
+        "error_msg": error_msg,
+        "db_host": os.getenv("DB_HOST", "unknown")
     })
 
 @app.post("/login")

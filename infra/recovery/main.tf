@@ -164,7 +164,21 @@ resource "terraform_data" "run_ansible" {
       export ANSIBLE_CONFIG=./ansible.cfg
       ANSIBLE_SSH_PIPELINING=1 ansible-playbook site.yml \
       -e "s3_bucket_name=$BACKUP_S3_BUCKET" \
-      -e "tailscale_auth_key=$TAILSCALE_AUTH_KEY"
+      -e "tailscale_auth_key=$TAILSCALE_AUTH_KEY" \
+      -e "web_host=${data.aws_instance.ccmall_web.public_ip}"
+    EOT
+  }
+}
+
+## 8. 프로비저닝시 즉시 ccmall_web의 /etc/ccmall/ccmall.env 파일 수정
+resource "terraform_data" "switch_web_db_host" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      ssh -i ../deployment/terraform/ccmall-key.pem \
+          -o StrictHostKeyChecking=no \
+          -o UserKnownHostsFile=/dev/null \
+          ec2-user@${data.aws_instance.ccmall_web.public_ip} \
+          "sudo sed -i 's/^DB_HOST=.*/DB_HOST=10.0.2.30/' /etc/ccmall/ccmall.env && sudo systemctl restart nginx"
     EOT
   }
 }
