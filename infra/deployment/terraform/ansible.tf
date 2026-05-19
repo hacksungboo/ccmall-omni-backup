@@ -93,6 +93,10 @@ resource "terraform_data" "bootstrap_user1" {
   provisioner "local-exec" {
     working_dir = local.infra_dir
 
+    environment = {
+      ANSIBLE_PUBLIC_KEY = var.ansible_public_key
+    }
+
     command = <<-EOT
       echo "======================================"
       echo " EC2 SSH 준비 대기 중... (40초)"
@@ -112,7 +116,7 @@ resource "terraform_data" "bootstrap_user1" {
         -u ec2-user \
         --private-key ${local.ccmall_ssh_key_file} \
         -e "bootstrap_public_key_file=${local.ccmall_ssh_key_file}.pub" \
-        -e "ansible_public_key=$ANSIBLE_PUBLIC_KEY" \
+        -e ansible_public_key="$ANSIBLE_PUBLIC_KEY" \
         ${local.bootstrap_playbook}
 
       echo "======================================"
