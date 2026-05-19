@@ -7,6 +7,7 @@ timezone: Asia/Seoul
 
 #DB 관련 변수
 # 패키지(pkg), 서비스(svc), 디렉토리 경로(dir), 포트
+db_host: "172.16.8.201"
 db_pkg: "postgresql15"
 db_svc: "{{ 'postgresql' if ansible_distribution == 'Amazon' else 'postgresql-15' }}"
 db_dir: "{{ '/var/lib/pgsql/data' if ansible_distribution == 'Amazon' else '/var/lib/pgsql/15/data' }}"
