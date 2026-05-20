@@ -15,17 +15,6 @@ resource "terraform_data" "prepare_ansible_dirs" {
   }
 }
 
-# 모니터링을 위한 mgmt 접속용 키 (github action -> mgmt)
-resource "local_sensitive_file" "mgmt_ssh_key" {
-  filename        = "${local.inventory_dir}/keys/ansiblekey2.pem"
-  content         = var.mgmt_private_key
-  file_permission = "0600"
-
-  depends_on = [
-    terraform_data.prepare_ansible_dirs
-  ]
-}
-
 
 # public ip와 private ip를 이용해서 infra/inventory/inventory.yml 파일 만들기
 # inventory는 ccmall-Web, ccmall-Rec만 단순하게 정의한다.
@@ -34,8 +23,7 @@ resource "local_file" "ansible_inventory" {
   filename = local.inventory_file
 
   depends_on = [
-    terraform_data.prepare_ansible_dirs,
-    local_sensitive_file.mgmt_ssh_key
+    terraform_data.prepare_ansible_dirs
   ]
 
   content = yamlencode({
@@ -44,12 +32,6 @@ resource "local_file" "ansible_inventory" {
         # ccmall-Web은 public subnet에 있으므로 public ip로 직접 접속한다.
         "ccmall-Web" = {
           ansible_host = aws_instance.ccmall_web.public_ip
-        }
-        "mgmt" = {
-          ansible_host                 = var.mgmt_host
-          ansible_user                 = var.mgmt_user
-          ansible_ssh_private_key_file = local_sensitive_file.mgmt_ssh_key.filename
-          ansible_ssh_common_args      = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o GSSAPIAuthentication=no"
         }
         # ccmall-Rec은 private subnet에 있으므로 ccmall-Web을 통해 점프 접속한다.
         "ccmall-Rec" = {
@@ -139,48 +121,45 @@ resource "terraform_data" "bootstrap_user1" {
 # =============================================
 # Terraform → Ansible 모니터링 자동실행
 # bootstrap_user1 완료 후 monitoring/playbook.yml 실행
-# Github Acionts Runner에서 mgmt에 접근하여 모니터링 설치하는 방식은 문제가 있어 주석처리
-# mgmt에서 직접 모니터링 playbook 실행하는 방식으로 진행
 # =============================================
-# resource "terraform_data" "run_monitoring_playbook" {
+resource "terraform_data" "run_monitoring_playbook" {
 
-#   depends_on = [
-#     aws_instance.ccmall_web,       # Web 서버 생성 완료 후
-#     aws_instance.ccmall_rec,       # Rec 서버 생성 완료 후
-#     local_file.ansible_inventory,  # inventory.yml 생성 완료 후
-#     local_file.ansible_cfg,        # ansible.cfg 생성 완료 후
-#     local_sensitive_file.mgmt_ssh_key,
-#     terraform_data.bootstrap_user1 # bootstrap 완료 후
-#   ]
+  depends_on = [
+    aws_instance.ccmall_web,       # Web 서버 생성 완료 후
+    aws_instance.ccmall_rec,       # Rec 서버 생성 완료 후
+    local_file.ansible_inventory,  # inventory.yml 생성 완료 후
+    local_file.ansible_cfg,        # ansible.cfg 생성 완료 후
+    terraform_data.bootstrap_user1 # bootstrap 완료 후
+  ]
 
-#   triggers_replace = {
-#     web_instance_id = aws_instance.ccmall_web.id
-#     rec_instance_id = aws_instance.ccmall_rec.id
-#     bootstrap_id    = terraform_data.bootstrap_user1.id
-#   }
+  triggers_replace = {
+    web_instance_id = aws_instance.ccmall_web.id
+    rec_instance_id = aws_instance.ccmall_rec.id
+    bootstrap_id    = terraform_data.bootstrap_user1.id
+  }
 
-#   provisioner "local-exec" {
-#     working_dir = local.infra_dir
+  provisioner "local-exec" {
+    working_dir = local.infra_dir
 
-#     command = <<-EOT
-#       echo "======================================"
-#       echo " EC2 SSH 준비 대기 중... (10초)"
-#       echo "======================================"
-#       sleep 10
+    command = <<-EOT
+      echo "======================================"
+      echo " EC2 SSH 준비 대기 중... (10초)"
+      echo "======================================"
+      sleep 10
 
-#       echo "======================================"
-#       echo " Ansible Monitoring Playbook 시작!"
-#       echo "======================================"
-#       ANSIBLE_CONFIG=${local.ansible_cfg} \
-#       ANSIBLE_SSH_PIPELINING=1 \
-#       ansible-playbook monitoring/playbook.yml
+      echo "======================================"
+      echo " Ansible Monitoring Playbook 시작!"
+      echo "======================================"
+      ANSIBLE_CONFIG=${local.ansible_cfg} \
+      ANSIBLE_SSH_PIPELINING=1 \
+      ansible-playbook monitoring/playbook.yml
 
-#       echo "======================================"
-#       echo " Monitoring Playbook 완료!"
-#       echo "======================================"
-#     EOT
-#   }
-# }
+      echo "======================================"
+      echo " Monitoring Playbook 완료!"
+      echo "======================================"
+    EOT
+  }
+}
 
 
 # =============================================
@@ -193,13 +172,13 @@ resource "terraform_data" "run_db_setup_playbook" {
     local_file.ansible_inventory,
     local_file.ansible_cfg,
     terraform_data.bootstrap_user1,
-    #terraform_data.run_monitoring_playbook
+    terraform_data.run_monitoring_playbook
   ]
 
   triggers_replace = {
     web_instance_id = aws_instance.ccmall_web.id
     rec_instance_id = aws_instance.ccmall_rec.id
-    #monitoring_id   = terraform_data.run_monitoring_playbook.id
+    monitoring_id   = terraform_data.run_monitoring_playbook.id
   }
 
   provisioner "local-exec" {
@@ -238,7 +217,7 @@ resource "terraform_data" "run_deploy_web_playbook" {
     local_file.ansible_inventory,   # inventory.yml 생성 완료 후
     local_file.ansible_cfg,         # ansible.cfg 생성 완료 후
     terraform_data.bootstrap_user1,
-    #terraform_data.run_monitoring_playbook,
+    terraform_data.run_monitoring_playbook,
     cloudflare_record.ccmall_root,  # cloudflare dns 생성 후
     time_sleep.wait_for_dns         # dns 전파시간 대기 후
   ]

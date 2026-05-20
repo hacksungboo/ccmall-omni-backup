@@ -102,17 +102,3 @@ variable "cloudflare_zone_name" {
   type        = string
   default     = "ccmall.shop"
 }
-
-variable "mgmt_host" {
-  type = string
-}
-
-variable "mgmt_user" {
-  type    = string
-  default = "user1"
-}
-
-variable "mgmt_private_key" {
-  type      = string
-  sensitive = true
-}

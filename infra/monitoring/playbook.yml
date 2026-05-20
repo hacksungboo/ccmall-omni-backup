@@ -1,12 +1,13 @@
 ---
-- name: 모니터링 설치 (Prometheus + Grafana + Alertmanager)
-  hosts: mgmt
-  become: yes
-  roles:
-    - monitoring
+# mgmt에는 github action runners에서가 아니라, mgmt에서 직접 설치
+# - name: 모니터링 설치 (Prometheus + Grafana + Alertmanager)
+#   hosts: mgmt
+#   become: yes
+#   roles:
+#     - monitoring
 
 - name: Node Exporter 설치 (전체 서버)
-  hosts: all
+  hosts: "ccmall-Web:ccmall-Rec" 
   become: yes
   tasks:
     - name: 필수 패키지 설치 (Rocky/Amazon Linux)

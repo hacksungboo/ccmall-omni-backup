@@ -26,8 +26,6 @@ jobs:
       TF_VAR_cloudflare_zone_name: ${{ secrets.TF_VAR_CLOUDFLARE_ZONE_NAME }}
       GH_TOKEN: ${{ secrets.TOKEN_GITHUB }}
       ANSIBLE_PUBLIC_KEY: ${{ secrets.ANSIBLE_PUBKEY }}
-      TF_VAR_mgmt_host: ${{ secrets.MGMT_HOST }}
-      TF_VAR_mgmt_private_key: ${{ secrets.MGMT_PRIVATE_KEY }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
     steps:
