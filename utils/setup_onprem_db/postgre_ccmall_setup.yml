@@ -1,0 +1,84 @@
+# ansible08/postgre_ccmall_setup.yml
+---
+- name: PostgreSQL 설치 및 ccmall DB 셋업 (Rocky Linux 전용)
+  hosts: rocky01
+  become: yes
+
+  vars:
+    # ccmall용 DB / 계정
+    db_name: "ccmall_db"
+    db_user: "ccmall_user"
+    db_pass: "user1"
+
+    # postgres 슈퍼유저 비밀번호
+    postgres_super_pass: "postgres"
+
+    pg_data_dir: "/var/lib/pgsql/data"
+    pg_hba_path: "{{ pg_data_dir }}/pg_hba.conf"
+    pg_conf_path: "{{ pg_data_dir }}/postgresql.conf"
+
+  tasks:
+    - name: 1. 필수 패키지 설치
+      dnf:
+        name:
+          - postgresql-server
+          - postgresql-contrib
+          - python3-psycopg2
+        state: present
+
+    - name: 2. DB 초기화
+      command: postgresql-setup --initdb
+      args:
+        creates: "{{ pg_data_dir }}/PG_VERSION"
+
+    - name: 3. 외부 접속 허용 (listen_addresses)
+      lineinfile:
+        path: "{{ pg_conf_path }}"
+        regexp: "^#?listen_addresses"
+        line: "listen_addresses = '*'"
+        state: present
+      notify: restart_postgre
+
+    - name: 4. localhost + 외부에서 md5 로그인 허용
+      replace:
+        path: "{{ pg_hba_path }}"
+        regexp: '^(host\s+all\s+all\s+(127\.0\.0\.1\/32|::1\/128)\s+)(ident|scram-sha-256|trust|peer)$'
+        replace: '\1md5'
+      notify: restart_postgre
+
+    - name: 5. 외부 아이피 대역 (0.0.0.0/0) md5 접속 허용 룰 추가
+      lineinfile:
+        path: "{{ pg_hba_path }}"
+        line: "host     all     all     0.0.0.0/0     md5"
+        insertafter: EOF
+      notify: restart_postgre
+
+    - name: 6. postgre 서비스 시작 및 부팅 시 자동 실행
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: 7. postgres 슈퍼유저 비밀번호 설정
+      postgresql_user:
+        name: postgres
+        password: "{{ postgres_super_pass }}"
+      become_user: postgres
+
+    - name: 8. ccmall_user 계정 생성 (postgres로 접속)
+      postgresql_user:
+        name: "{{ db_user }}"
+        password: "{{ db_pass }}"
+      become_user: postgres
+
+    - name: 9. ccmall_db 데이터베이스 생성 및 소유권 부여
+      postgresql_db:
+        name: "{{ db_name }}"
+        owner: "{{ db_user }}"
+      become_user: postgres
+
+  handlers:
+    - name: restart_postgre
+      systemd:
+        name: postgresql
+        state: restarted

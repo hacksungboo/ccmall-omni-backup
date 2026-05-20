@@ -1,0 +1,18 @@
+---
+- name: restart prometheus
+  systemd:
+    name: prometheus
+    state: restarted
+    daemon_reload: yes
+
+- name: restart grafana
+  systemd:
+    name: grafana-server
+    state: restarted
+    daemon_reload: yes
+
+- name: restart alertmanager
+  systemd:
+    name: alertmanager
+    state: restarted
+    daemon_reload: yes

@@ -1,0 +1,46 @@
+# ~/ansible08/postgre_remove.yml
+---
+- name: "PostgreSQL 완전 삭제 및 초기화 (Rocky Linux 전용)"
+  hosts: rocky01
+  become: yes
+
+
+  vars:
+    # 삭제할 최상위 데이터 디렉토리 (여기를 날려야 initdb 찌꺼기가 사라집니다)
+    pg_base_dir: "/var/lib/pgsql"
+
+
+  tasks:
+    - name: "1. PostgreSQL 서비스 중지 및 비활성화"
+      systemd:
+        name: postgresql
+        state: stopped
+        enabled: no
+      # 패키지가 이미 지워졌거나 서비스가 없을 때 에러가 나지 않도록 무시합니다.
+      ignore_errors: yes
+
+
+    - name: "2. PostgreSQL 관련 패키지 완전 삭제"
+      dnf:
+        name:
+          - postgresql-server
+          - postgresql-contrib
+          - postgresql
+          - python3-psycopg2
+        state: absent
+        autoremove: yes  # 안 쓰는 의존성 패키지까지 같이 날려줍니다.
+
+
+    - name: "3. 데이터베이스 찌꺼기 파일 및 설정 폴더 완전 삭제"
+      file:
+        path: "{{ pg_base_dir }}"
+        state: absent
+
+
+    - name: "4. OS의 'postgres' 시스템 계정 삭제"
+      user:
+        name: postgres
+        state: absent
+        remove: yes  # 홈 디렉토리와 메일 스풀까지 싹 다 지웁니다.
+
+
