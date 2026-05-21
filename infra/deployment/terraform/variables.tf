@@ -100,5 +100,5 @@ variable "cloudflare_api_token" {
 variable "cloudflare_zone_name" {
   description = "Cloudflare zone name"
   type        = string
-  default     = "ccmall.shop"
+  default     = "bobobobo.store"
 }
